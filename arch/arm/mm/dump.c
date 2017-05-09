@@ -202,6 +202,9 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits, size_t 
 {
 	unsigned i;
 
+	seq_printf(st->seq, " prot: 0x%08llx   ",
+				   st->current_prot);
+
 	for (i = 0; i < num; i++, bits++) {
 		const char *s;
 
