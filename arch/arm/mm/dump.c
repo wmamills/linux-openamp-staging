@@ -125,6 +125,7 @@ static const struct prot_bits section_bits[] = {
 		.mask	= PMD_SECT_USER,
 		.val	= PMD_SECT_USER,
 		.set	= "USR",
+		.clear	= "   ",
 	}, {
 		.mask	= L_PMD_SECT_RDONLY,
 		.val	= L_PMD_SECT_RDONLY,
@@ -176,6 +177,27 @@ static const struct prot_bits section_bits[] = {
 		.val	= PMD_SECT_S,
 		.set	= "SHD",
 		.clear	= "   ",
+	}, {
+		.mask	= PMD_SECT_CACHE_MASK,
+		.val	= PMD_SECT_UNCACHED,
+		.set	= "SECT SO/UNCACHED",
+	}, {
+		.mask	= PMD_SECT_CACHE_MASK,
+		.val	= PMD_SECT_BUFFERED,
+		.set	= "SECT MEM/BUFFERABLE/WC",
+	}, {
+		.mask	= PMD_SECT_CACHE_MASK,
+		.val	= PMD_SECT_WT,
+		.set	= "SECT MEM/CACHED/WT",
+	}, {
+
+		.mask	= PMD_SECT_CACHE_MASK,
+		.val	= PMD_SECT_WB,
+		.set	= "SECT MEM/CACHED/WBRA",
+	}, {
+		.mask	= PMD_SECT_CACHE_MASK,
+		.val	= PMD_SECT_WBWA,
+		.set	= "SECT MEM/CACHED/WBWA",
 	},
 };
 
@@ -202,7 +224,7 @@ static void dump_prot(struct pg_state *st, const struct prot_bits *bits, size_t 
 {
 	unsigned i;
 
-	seq_printf(st->seq, " prot: 0x%08llx   ",
+	seq_printf(st->seq, " prot: 0x%016llx   ",
 				   st->current_prot);
 
 	for (i = 0; i < num; i++, bits++) {
@@ -226,7 +248,7 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level, u
 	if (!st->level) {
 		st->level = level;
 		st->current_prot = prot;
-		seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
+		seq_printf(st->seq, "---[ %s:0x%08lx ]---\n", st->marker->name, st->marker->start_address);
 	} else if (prot != st->current_prot || level != st->level ||
 		   addr >= st->marker[1].start_address) {
 		const char *unit = units;
@@ -249,7 +271,7 @@ static void note_page(struct pg_state *st, unsigned long addr, unsigned level, u
 
 		if (addr >= st->marker[1].start_address) {
 			st->marker++;
-			seq_printf(st->seq, "---[ %s ]---\n", st->marker->name);
+			seq_printf(st->seq, "---[ %s:0x%08lx ]---\n", st->marker->name, st->marker->start_address);
 		}
 		st->start_address = addr;
 		st->current_prot = prot;
