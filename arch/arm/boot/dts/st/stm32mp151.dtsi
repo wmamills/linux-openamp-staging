@@ -1296,6 +1296,7 @@
 			#address-cells = <0>;
 			reg = <0x5000d000 0x400>;
 			wakeup-parent = <&pwr_irq>;
+			hwlocks = <&hsem 1 1>;
 
 			exti-interrupt-map {
 				#address-cells = <0>;
