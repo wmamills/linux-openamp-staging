@@ -1890,7 +1890,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 	GATE_MP1(CK_CSI, "ck_csi", "clk-csi",
 		 CLK_IS_CRITICAL, RCC_OCENSETR, 4, 0),
 	GATE(CK_LSI, "ck_lsi", "clk-lsi", 0, RCC_RDLSICR, 0, 0),
-	GATE(CK_LSE, "ck_lse", "clk-lse", 0, RCC_BDCR, 0, 0),
+	GATE(CK_LSE, "ck_lse", "clk-lse", CLK_IS_CRITICAL, RCC_BDCR, 0, 0),
 
 	FIXED_FACTOR(CK_HSE_DIV2, "clk-hse-div2", "ck_hse", 0, 1, 2),
 
@@ -2179,7 +2179,7 @@ static const struct clock_config stm32mp1_clock_cfg[] = {
 
 	/* RTC clock */
 	COMPOSITE(RTC, "ck_rtc", rtc_src,
-		  CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_PARENT,
+		  CLK_OPS_PARENT_ENABLE | CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 		  _GATE(RCC_BDCR, 20, 0),
 		  _MUX(RCC_BDCR, 16, 2, 0),
 		  _DIV_RTC(RCC_RTCDIVR, 0, 6, 0, NULL)),
