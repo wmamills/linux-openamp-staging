@@ -103,7 +103,7 @@ enum state {
 #define OVERRUN_ERROR_THRESHOLD	3
 
 struct dcmi_graph_entity {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_subdev *asd;
 
 	struct device_node *remote_node;
 	struct v4l2_subdev *source;
@@ -1896,6 +1896,7 @@ static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
 {
 	struct device_node *ep = NULL;
 	struct device_node *remote;
+	struct v4l2_async_subdev *asd;
 
 	ep = of_graph_get_next_endpoint(node, ep);
 	if (!ep)
@@ -1906,10 +1907,18 @@ static int dcmi_graph_parse(struct stm32_dcmi *dcmi, struct device_node *node)
 	if (!remote)
 		return -EINVAL;
 
+	asd = kcalloc(1, sizeof(struct v4l2_async_subdev), GFP_KERNEL);
+	if (!asd) {
+		of_node_put(remote);
+		return -ENOMEM;
+	}
+
 	/* Remote node to connect */
 	dcmi->entity.remote_node = remote;
-	dcmi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
-	dcmi->entity.asd.match.fwnode = of_fwnode_handle(remote);
+	asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
+	asd->match.fwnode = of_fwnode_handle(remote);
+	dcmi->entity.asd = asd;
+
 	return 0;
 }
 
@@ -1926,8 +1935,7 @@ static int dcmi_graph_init(struct stm32_dcmi *dcmi)
 
 	v4l2_async_notifier_init(&dcmi->notifier);
 
-	ret = v4l2_async_notifier_add_subdev(&dcmi->notifier,
-					     &dcmi->entity.asd);
+	ret = v4l2_async_notifier_add_subdev(&dcmi->notifier, dcmi->entity.asd);
 	if (ret) {
 		dev_err(dcmi->dev, "Failed to add subdev notifier\n");
 		of_node_put(dcmi->entity.remote_node);
