@@ -89,6 +89,7 @@ config RPMSG_VIRTIO
 	depends on HAS_DMA
 	select RPMSG
 	select RPMSG_NS
+	select RPMSG_FC
 	select VIRTIO
 
 endmenu

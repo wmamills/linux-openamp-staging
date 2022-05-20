@@ -19,6 +19,7 @@
 #include <linux/mutex.h>
 #include <linux/rpmsg.h>
 #include <linux/rpmsg/byteorder.h>
+#include <linux/rpmsg/fc.h>
 #include <linux/rpmsg/ns.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
@@ -70,6 +71,7 @@ struct virtproc_info {
 
 /* The feature bitmap for virtio rpmsg */
 #define VIRTIO_RPMSG_F_NS	0 /* RP supports name service notifications */
+#define VIRTIO_RPMSG_F_FC	1 /* RP supports endpoint flow control notifications */
 
 /**
  * struct rpmsg_hdr - common header for all rpmsg messages
@@ -910,7 +912,7 @@ static int rpmsg_probe(struct virtio_device *vdev)
 	struct virtqueue *vqs[2];
 	struct virtproc_info *vrp;
 	struct virtio_rpmsg_channel *vch = NULL;
-	struct rpmsg_device *rpdev_ns, *rpdev_ctrl;
+	struct rpmsg_device *rpdev_ns = NULL, *rpdev_ctrl, *rpdev_fc;
 	void *bufs_va;
 	int err = 0, i;
 	size_t total_buf_space;
@@ -1015,6 +1017,30 @@ static int rpmsg_probe(struct virtio_device *vdev)
 			goto free_ctrldev;
 	}
 
+	/* If supported by the remote processor, enable the flow control service */
+	if (virtio_has_feature(vdev, VIRTIO_RPMSG_F_FC)) {
+		vch = kzalloc(sizeof(*vch), GFP_KERNEL);
+		if (!vch) {
+			err = -ENOMEM;
+			goto free_ns;
+		}
+
+		/* Link the channel to our vrp */
+		vch->vrp = vrp;
+
+		/* Assign public information to the rpmsg_device */
+		rpdev_fc = &vch->rpdev;
+		rpdev_fc->ops = &virtio_rpmsg_ops;
+		rpdev_fc->little_endian = virtio_is_little_endian(vrp->vdev);
+
+		rpdev_fc->dev.parent = &vrp->vdev->dev;
+		rpdev_fc->dev.release = virtio_rpmsg_release_device;
+
+		err = rpmsg_fc_register_device(rpdev_fc);
+		if (err)
+			goto free_ns;
+	}
+
 	/*
 	 * Prepare to kick but don't notify yet - we can't do this before
 	 * device is ready.
@@ -1036,6 +1062,9 @@ static int rpmsg_probe(struct virtio_device *vdev)
 
 	return 0;
 
+free_ns:
+	if (rpdev_ns)
+		device_unregister(&rpdev_ns->dev);
 free_ctrldev:
 	rpmsg_virtio_del_ctrl_dev(rpdev_ctrl);
 free_coherent:
@@ -1084,6 +1113,7 @@ static struct virtio_device_id id_table[] = {
 
 static unsigned int features[] = {
 	VIRTIO_RPMSG_F_NS,
+	VIRTIO_RPMSG_F_FC,
 };
 
 static struct virtio_driver virtio_ipc_driver = {
