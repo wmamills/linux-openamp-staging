@@ -112,6 +112,8 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
 	struct ptp_sys_offset_extended *extoff = NULL;
 	struct ptp_sys_offset_precise precise_offset;
+	struct ptp_ptp_offset_precise ptp_precise_offset;
+	struct device_device_crosststamp devxtstamp;
 	struct system_device_crosststamp xtstamp;
 	struct ptp_clock_info *ops = ptp->info;
 	struct ptp_sys_offset *sysoff = NULL;
@@ -139,6 +141,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		caps.cross_timestamping = ptp->info->getcrosststamp != NULL;
 		caps.adjust_phase = ptp->info->adjphase != NULL &&
 				    ptp->info->getmaxphase != NULL;
+		caps.peer_cross_timestamping = (ptp->info->getphcxtstamp != NULL) && (ptp->peer);
 		if (caps.adjust_phase)
 			caps.max_phase_adj = ptp->info->getmaxphase(ptp->info);
 		if (copy_to_user((void __user *)arg, &caps, sizeof(caps)))
@@ -322,6 +325,26 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			extoff->ts[i][2].nsec = sts.post_ts.tv_nsec;
 		}
 		if (copy_to_user((void __user *)arg, extoff, sizeof(*extoff)))
+			err = -EFAULT;
+		break;
+
+	case PTP_PTP_OFFSET_PRECISE:
+		if ((!ptp->info->getphcxtstamp) || (!ptp->peer)) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+		err = ptp->info->getphcxtstamp(ptp->info, ptp->peer->info,
+									   &devxtstamp);
+		if (err)
+			break;
+		ts = ktime_to_timespec64(devxtstamp.device);
+		ptp_precise_offset.device.sec = ts.tv_sec;
+		ptp_precise_offset.device.nsec = ts.tv_nsec;
+		ts = ktime_to_timespec64(devxtstamp.peer_device);
+		ptp_precise_offset.peer.sec = ts.tv_sec;
+		ptp_precise_offset.peer.nsec = ts.tv_nsec;
+		if (copy_to_user((void __user *)arg, &ptp_precise_offset,
+			sizeof(ptp_precise_offset)))
 			err = -EFAULT;
 		break;
 

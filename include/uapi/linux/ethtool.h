@@ -1456,7 +1456,9 @@ struct ethtool_ts_info {
 	__u32	tx_types;
 	__u32	tx_reserved[3];
 	__u32	rx_filters;
-	__u32	rx_reserved[3];
+	__s32   phc_index_2nd;
+	__s32   phc_worker;
+	__s32   phc_timestamper;
 };
 
 /*
@@ -2205,4 +2207,10 @@ struct ethtool_link_settings {
 	 * __u32 map_lp_advertising[link_mode_masks_nwords];
 	 */
 };
+
+struct ethtool_clock {
+	__u32   cmd;
+	__s32   phc_index;
+};
+
 #endif /* _UAPI_LINUX_ETHTOOL_H */
