@@ -45,6 +45,10 @@ for i in v2.6.11 v3.0 v4.0 v5.0 v5.18; do
     git push wam $i
 done
 
+git push -f . linus/master:main
+
+git push $PUSH_TO main:main
+git push $PUSH_TO meta:meta
 git push $PUSH_TO linus/master:refs/heads/linus/master
 git push $PUSH_TO remoteproc/for-next:refs/heads/remoteproc/for-next
 git push $PUSH_TO --tags
