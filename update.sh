@@ -28,7 +28,7 @@ for i in $(git tag | grep "^u"); do git tag -d $i; done
 git tag -d latest
 
 # get rid of all -rc tags but keep the last 3 releases worth
-for i in $(git tag | grep "\-rc" | grep -v "v5.1[876]"); do git tag -d $i; done
+for i in $(git tag | grep "\-rc" | grep -v "v5.1[987]" | grep -v "v6."); do git tag -d $i; done
 
 # get rid of rt-patches tags
 for i in $(git tag | grep "\rt.*-patches$" ); do git tag -d $i; done
