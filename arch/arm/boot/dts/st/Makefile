@@ -38,6 +38,7 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp157a-avenger96.dtb \
 	stm32mp157a-dhcor-avenger96.dtb \
 	stm32mp157a-dk1.dtb \
+	stm32mp157a-ed1.dtb \
 	stm32mp157a-iot-box.dtb \
 	stm32mp157a-microgea-stm32mp1-microdev2.0.dtb \
 	stm32mp157a-microgea-stm32mp1-microdev2.0-of7.dtb \
@@ -57,7 +58,9 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp157c-odyssey.dtb \
 	stm32mp157c-phycore-stm32mp1-3.dtb \
 	stm32mp157d-dk1.dtb \
-	stm32mp157f-dk2.dtb
+	stm32mp157d-ed1.dtb \
+	stm32mp157f-dk2.dtb \
+	stm32mp157f-ed1.dtb
 dtb-$(CONFIG_ARCH_U8500) += \
 	ste-snowball.dtb \
 	ste-hrefprev60-stuib.dtb \
