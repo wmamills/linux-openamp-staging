@@ -1441,6 +1441,14 @@
 				status = "disabled";
 			};
 
+			crc: crc@404c0000 {
+				compatible = "st,stm32f7-crc";
+				reg = <0x404c0000 0x400>;
+				clocks = <&rcc CK_BUS_CRC>;
+				access-controllers = <&rifsc 109>;
+				status = "disabled";
+			};
+
 			adc_12: adc@404e0000 {
 				compatible = "st,stm32mp25-adc-core";
 				reg = <0x404e0000 0x400>;
