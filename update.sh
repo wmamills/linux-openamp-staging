@@ -42,7 +42,7 @@ for i in $(git tag | grep -v "^v"); do git tag -d $i; done
 # this is needed if the remote repo is new and on github
 # this makes the pack smaller so as not to exceed 2GB
 for i in v2.6.11 v3.0 v4.0 v5.0 v5.18; do
-    git push wam $i
+    git push $PUSH_TO $i
 done
 
 # make local namespace branches match their upstream
