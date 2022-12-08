@@ -2243,6 +2243,24 @@
 				};
 			};
 
+			pcie_ep: pcie-ep@48400000 {
+				compatible = "st,stm32mp25-pcie-ep", "snps,dw-pcie-ep";
+				num-lanes = <1>;
+				reg = <0x48400000 0x400000>,
+				      <0x10000000 0x8000000>;
+				reg-names = "dbi", "addr_space";
+				st,syscfg = <&syscfg>;
+				clocks = <&rcc CK_BUS_PCIE>;
+				clock-names = "core";
+				resets = <&rcc PCIE_R>;
+				reset-names = "pcie";
+				phys = <&combophy PHY_TYPE_PCIE>;
+				phy-names = "pcie-phy";
+				access-controllers = <&rifsc 68>;
+				power-domains = <&CLUSTER_PD>;
+				status = "disabled";
+			};
+
 			pcie_rc: pcie@48400000 {
 				compatible = "st,stm32mp25-pcie-rc", "snps,dw-pcie";
 				device_type = "pci";
