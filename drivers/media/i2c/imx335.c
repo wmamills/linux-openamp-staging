@@ -1018,6 +1018,7 @@ static int imx335_power_on(struct device *dev)
 		return ret;
 	}
 
+	gpiod_set_value_cansleep(imx335->reset_gpio, 0);
 	gpiod_set_value_cansleep(imx335->powerdown_gpio, 1);
 
 	usleep_range(500, 550); /* Tlow */
@@ -1032,6 +1033,10 @@ static int imx335_power_on(struct device *dev)
 	}
 
 	usleep_range(20, 22); /* T4 */
+
+	/* TODO - is this still necessary ?? */
+	/* Ensure that all is stable after reset */
+	usleep_range(5000, 10000);
 
 	return 0;
 
