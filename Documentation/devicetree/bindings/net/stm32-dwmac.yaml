@@ -110,6 +110,11 @@ properties:
       set this property when PTP (IEEE1588) clock selection is from RCC,
       by default ETHSW ptp ref clock is used
     type: boolean
+
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
 required:
   - compatible
   - clocks

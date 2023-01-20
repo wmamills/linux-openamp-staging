@@ -172,6 +172,10 @@ properties:
 
   tpl-support: true
 
+  access-controllers:
+    minItems: 1
+    maxItems: 2
+
   wakeup-source:
     $ref: /schemas/types.yaml#/definitions/flag
     description: If present indicates this device has wakeup capabilities
