@@ -70,6 +70,12 @@
 	};
 
 	clocks {
+		clk_csi: clk-csi {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <4000000>;
+		};
+
 		clk_hse: clk-hse {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -92,12 +98,6 @@
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
 			clock-frequency = <32000>;
-		};
-
-		clk_csi: clk-csi {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <4000000>;
 		};
 	};
 
@@ -1270,7 +1270,7 @@
 			};
 		};
 
-		pwr_mcu: pwr_mcu@50001014 {
+		pwr_mcu: pwr-mcu@50001014 {
 			compatible = "st,stm32mp151-pwr-mcu", "syscon";
 			reg = <0x50001014 0x4>;
 		};
@@ -2011,10 +2011,10 @@
 			      <0x38000000 0x10000>;
 			resets = <&rcc MCU_R>;
 			reset-names = "mcu_rst";
-			st,syscfg-holdboot = <&rcc 0x10C 0x1>;
+			st,syscfg-holdboot = <&rcc 0x10c 0x1>;
 			st,syscfg-pdds = <&pwr_mcu 0x0 0x1>;
-			st,syscfg-rsc-tbl = <&tamp 0x144 0xFFFFFFFF>;
-			st,syscfg-m4-state = <&tamp 0x148 0xFFFFFFFF>;
+			st,syscfg-rsc-tbl = <&tamp 0x144 0xffffffff>;
+			st,syscfg-m4-state = <&tamp 0x148 0xffffffff>;
 			status = "disabled";
 
 			m4_system_resources {
