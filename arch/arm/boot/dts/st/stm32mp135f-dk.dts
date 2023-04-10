@@ -155,11 +155,6 @@
 	/delete-property/dma-names;
 };
 
-&iwdg2 {
-	timeout-sec = <32>;
-	status = "okay";
-};
-
 &rtc {
 	status = "okay";
 };
