@@ -407,6 +407,12 @@ bool arch_restore_msi_irqs(struct pci_dev *dev);
 
 #ifdef CONFIG_GENERIC_MSI_IRQ
 
+/*
+ * Hook for the platform to provide alternative IRQs
+ * than MSI or legacy
+ */
+extern int (*pcie_port_irqs_hook)(struct pci_dev *dev, u32 *pme, u32 *aer, u32 *dpc);
+
 #include <linux/irqhandler.h>
 
 struct irq_domain;
