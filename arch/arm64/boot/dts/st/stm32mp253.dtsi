@@ -24,6 +24,10 @@
 	};
 };
 
+&optee {
+	interrupts = <GIC_PPI 15 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_LOW)>;
+};
+
 &rifsc {
 	eth2: eth2@482d0000 {
 		compatible = "st,stm32mp25-dwmac", "snps,dwmac-5.10a";

@@ -24,6 +24,7 @@
 			enable-method = "psci";
 			clocks = <&scmi_perf 0>;
 			clock-names = "cpu";
+			#cooling-cells = <2>;
 		};
 	};
 
@@ -148,6 +149,49 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+	};
+
+	thermal-zones {
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&dts 1>;
+
+			trips {
+				cpu_alert: cpu-alert {
+					temperature = <110000>;
+					hysteresis = <10000>;
+					type = "passive";
+				};
+
+				cpu-crit {
+					temperature = <122000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert>;
+					cooling-device = <&cpu0 1 1>;
+				};
+			};
+		};
+
+		soc-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&dts 0>;
+
+			trips {
+				soc-crit {
+					temperature = <122000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
 	};
 
 	timer {
