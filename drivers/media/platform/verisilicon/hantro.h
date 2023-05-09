@@ -114,6 +114,7 @@ struct hantro_variant {
  * @HANTRO_MODE_HEVC_DEC: HEVC decoder.
  * @HANTRO_MODE_VP9_DEC: VP9 decoder.
  * @HANTRO_MODE_AV1_DEC: AV1 decoder
+ * @HANTRO_MODE_VP8_ENC: VP8 encoder.
  */
 enum hantro_codec_mode {
 	HANTRO_MODE_NONE = -1,
@@ -124,6 +125,7 @@ enum hantro_codec_mode {
 	HANTRO_MODE_HEVC_DEC,
 	HANTRO_MODE_VP9_DEC,
 	HANTRO_MODE_AV1_DEC,
+	HANTRO_MODE_VP8_ENC,
 };
 
 /*
