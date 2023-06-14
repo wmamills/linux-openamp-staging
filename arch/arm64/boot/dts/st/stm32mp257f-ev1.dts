@@ -37,6 +37,18 @@
 	status = "okay";
 };
 
+&hpdma {
+	memory-region = <&hpdma1_lli>;
+};
+
+&hpdma2 {
+	memory-region = <&hpdma2_lli>;
+};
+
+&hpdma3 {
+	memory-region = <&hpdma3_lli>;
+};
+
 &scmi_regu {
 	scmi_vddio1: regulator@0 {
 		regulator-min-microvolt = <1800000>;
