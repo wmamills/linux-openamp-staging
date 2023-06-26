@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/usb/role.h>
 #include <linux/mfd/syscon.h>
 
 #define PHY1CR_OFFSET		0x2400
@@ -197,12 +198,23 @@ static int stm32_usb2phy_set_mode(struct phy *phy, enum phy_mode mode, int submo
 						 phy_data->cr_offset,
 						 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK,
 						 0);
-		else
-			ret = regmap_update_bits(phy_dev->regmap,
-						 phy_data->cr_offset,
-						 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK |
-						 SYSCFG_USB2PHY2CR_VBUSVALID_MASK,
-						 SYSCFG_USB2PHY2CR_VBUSVALID_MASK);
+		else {
+			if (submode == USB_ROLE_NONE) {
+				ret = regmap_update_bits(phy_dev->regmap,
+							 phy_data->cr_offset,
+							 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK |
+							 SYSCFG_USB2PHY2CR_VBUSVLDEXT_MASK |
+							 SYSCFG_USB2PHY2CR_VBUSVALID_MASK |
+							 SYSCFG_USB2PHY2CR_VBUSVLDEXT_MASK, 0);
+			} else {
+				ret = regmap_update_bits(phy_dev->regmap,
+							 phy_data->cr_offset,
+							 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK |
+							 SYSCFG_USB2PHY2CR_VBUSVLDEXT_MASK |
+							 SYSCFG_USB2PHY2CR_VBUSVALID_MASK,
+							 SYSCFG_USB2PHY2CR_VBUSVALID_MASK);
+			}
+		}
 		if (ret) {
 			dev_err(dev, "can't set usb2phycr (%d)\n", ret);
 			return ret;
@@ -210,10 +222,26 @@ static int stm32_usb2phy_set_mode(struct phy *phy, enum phy_mode mode, int submo
 		break;
 
 	case PHY_MODE_USB_DEVICE:
-		ret = regmap_update_bits(phy_dev->regmap,
-					 phy_data->cr_offset,
-					 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK,
-					 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK);
+		if (submode == USB_ROLE_NONE) {
+			ret = regmap_update_bits(phy_dev->regmap,
+						 phy_data->cr_offset,
+						 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVALID_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVLDEXTSEL_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVLDEXT_MASK,
+						 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVLDEXTSEL_MASK);
+		} else {
+			ret = regmap_update_bits(phy_dev->regmap,
+						 phy_data->cr_offset,
+						 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVALID_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVLDEXTSEL_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVLDEXT_MASK,
+						 SYSCFG_USB2PHY2CR_USB2PHY2CMN_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVLDEXTSEL_MASK |
+						 SYSCFG_USB2PHY2CR_VBUSVLDEXT_MASK);
+		}
 		if (ret) {
 			dev_err(dev, "can't set usb2phycr (%d)\n", ret);
 			return ret;
