@@ -110,6 +110,13 @@
 		default-brightness-level = <0>;
 		status = "okay";
 	};
+
+	sound: sound {
+		compatible = "audio-graph-card";
+		label = "STM32MP25-EV1";
+		dais = <&i2s2_port>;
+		status = "disabled";
+	};
 };
 
 &a35ss_syscfg {
@@ -340,6 +347,21 @@
 		interrupts = <13 IRQ_TYPE_EDGE_FALLING>;
 		reset-gpios = <&gpiog 14 GPIO_ACTIVE_LOW>;
 		status = "okay";
+	};
+};
+
+&i2s2 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2s2_pins_a>;
+	pinctrl-1 = <&i2s2_sleep_pins_a>;
+	status = "disabled";
+
+	i2s2_port: port {
+		i2s2_endpoint: endpoint {
+			remote-endpoint = <&adv7535_tx_endpoint>;
+			format = "i2s";
+			mclk-fs = <256>;
+		};
 	};
 };
 
