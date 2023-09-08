@@ -64,6 +64,9 @@ static int stm32_rng_read(struct hwrng *rng, void *data, size_t max, bool wait)
 					"bad RNG status - %x\n", sr))
 				writel_relaxed(0, priv->base + RNG_SR);
 			break;
+		} else if (!sr) {
+			/* The FIFO is being filled up */
+			break;
 		}
 
 		*(u32 *)data = readl_relaxed(priv->base + RNG_DR);
