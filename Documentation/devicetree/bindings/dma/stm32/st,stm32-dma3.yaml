@@ -78,6 +78,18 @@ properties:
     maximum: 256
     default: 64
 
+  st,syscfg-arcr:
+    description: |
+      Phandle to system configuration controller. It is used to get the status of the STM32 DMA3 AXI
+      port address remapping. When enabled, the 4GB address space accessible by the STM32 DMA3 AXI
+      port starts at address 0x80000000 instead of 0x00000000.
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to syscfg
+          - description: register offset within syscfg
+          - description: register bitmask for DMA controller Address Remapping ENable (AREN) bit
+
   "#dma-cells":
     const: 3
     description: |
