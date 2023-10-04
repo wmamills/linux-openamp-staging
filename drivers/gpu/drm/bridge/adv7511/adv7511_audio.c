@@ -237,6 +237,7 @@ static const struct hdmi_codec_pdata codec_data = {
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE),
 	.max_i2s_channels = 2,
 	.i2s = 1,
+	.no_i2s_capture = 1,
 	.spdif = 1,
 };
 
