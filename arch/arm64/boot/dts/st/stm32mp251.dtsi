@@ -1710,6 +1710,7 @@
 				resets = <&rcc MDF1_R>;
 				reset-names = "mdf";
 				access-controllers = <&rifsc 54>;
+				power-domains = <&RET_PD>;
 				status = "disabled";
 
 				sitf0: sitf@80 {
