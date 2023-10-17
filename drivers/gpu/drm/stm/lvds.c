@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 
 /* LVDS Host registers */
@@ -271,6 +272,9 @@ struct stm_lvds {
 
 	u32 hw_version;
 	u32 link_type;
+
+	struct regulator *vdd_supply;
+	struct regulator *vdda18_supply;
 };
 
 #define bridge_to_stm_lvds(b) \
@@ -1070,6 +1074,18 @@ static int lvds_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	lvds->vdd_supply = devm_regulator_get(dev, "vdd");
+	if (IS_ERR(lvds->vdd_supply)) {
+		dev_err_probe(dev, ret, "Failed to request regulator\n");
+		return PTR_ERR(lvds->vdd_supply);
+	}
+
+	lvds->vdda18_supply = devm_regulator_get(dev, "vdda18");
+	if (IS_ERR(lvds->vdda18_supply)) {
+		dev_err_probe(dev, ret, "Failed to request regulator\n");
+		return  PTR_ERR(lvds->vdda18_supply);
+	}
+
 	rstc = devm_reset_control_get_exclusive(dev, NULL);
 
 	if (IS_ERR(rstc)) {
@@ -1133,8 +1149,7 @@ static int lvds_probe(struct platform_device *pdev)
 		}
 		break;
 	default:
-		ret = -EINVAL;
-		goto err_lvds_probe;
+		return -EINVAL;
 	}
 	of_node_put(port1);
 	of_node_put(port2);
@@ -1143,7 +1158,7 @@ static int lvds_probe(struct platform_device *pdev)
 	if (IS_ERR(lvds->pllref_clk)) {
 		ret = PTR_ERR(lvds->pllref_clk);
 		dev_err(dev, "Unable to get reference clock: %d\n", ret);
-		goto err_lvds_probe;
+		return ret;
 	}
 
 	ret = lvds_pixel_clk_register(lvds);
@@ -1194,6 +1209,8 @@ static int __maybe_unused lvds_runtime_suspend(struct device *dev)
 
 	clk_disable_unprepare(lvds->pllref_clk);
 	clk_disable_unprepare(lvds->pclk);
+	regulator_disable(lvds->vdd_supply);
+	regulator_disable(lvds->vdda18_supply);
 
 	return 0;
 }
@@ -1205,19 +1222,34 @@ static int __maybe_unused lvds_runtime_resume(struct device *dev)
 
 	DRM_DEBUG_DRIVER("\n");
 
+	ret = regulator_enable(lvds->vdda18_supply);
+	if (ret) {
+		DRM_ERROR("Failed to enable regulator vdda18: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_enable(lvds->vdd_supply);
+	if (ret) {
+		regulator_disable(lvds->vdda18_supply);
+		DRM_ERROR("Failed to enable regulator vdd: %d\n", ret);
+		return ret;
+	}
+
 	ret = clk_prepare_enable(lvds->pclk);
-	if (ret)
-		goto err;
+	if (ret) {
+		regulator_disable(lvds->vdd_supply);
+		regulator_disable(lvds->vdda18_supply);
+		DRM_ERROR("Failed to enable pclk: %d\n", ret);
+		return ret;
+	}
 
 	ret = clk_prepare_enable(lvds->pllref_clk);
-	if (ret)
-		goto err_pclk;
-
-	return 0;
-err_pclk:
-	clk_disable_unprepare(lvds->pclk);
-err:
-	DRM_ERROR("Failed to resume lvds: %d\n", ret);
+	if (ret) {
+		clk_disable_unprepare(lvds->pclk);
+		regulator_disable(lvds->vdd_supply);
+		regulator_disable(lvds->vdda18_supply);
+		DRM_ERROR("Failed to enable pllref_clk: %d\n", ret);
+	}
 
 	return ret;
 }
