@@ -583,10 +583,9 @@ static void stm32_pwm_detect_complementary(struct stm32_pwm *priv)
 	priv->have_complementary_output = (ccer != 0);
 }
 
-static unsigned int stm32_pwm_detect_channels(struct stm32_pwm *priv,
-					      unsigned int *num_enabled)
+static unsigned int stm32_pwm_detect_channels(struct stm32_pwm *priv)
 {
-	u32 ccer, ccer_backup;
+	u32 ccer;
 
 	/*
 	 * If channels enable bits don't exist writing 1 will have no
@@ -595,9 +594,7 @@ static unsigned int stm32_pwm_detect_channels(struct stm32_pwm *priv,
 	regmap_read(priv->regmap, TIM_CCER, &ccer_backup);
 	regmap_set_bits(priv->regmap, TIM_CCER, TIM_CCER_CCXE);
 	regmap_read(priv->regmap, TIM_CCER, &ccer);
-	regmap_write(priv->regmap, TIM_CCER, ccer_backup);
-
-	*num_enabled = hweight32(ccer_backup & TIM_CCER_CCXE);
+	regmap_clear_bits(priv->regmap, TIM_CCER, TIM_CCER_CCXE);
 
 	return hweight32(ccer & TIM_CCER_CCXE);
 }
