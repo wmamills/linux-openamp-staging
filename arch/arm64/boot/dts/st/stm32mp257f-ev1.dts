@@ -386,6 +386,14 @@
 	status = "okay";
 };
 
+/* use LPTIMER with tick broadcast for suspend mode */
+&lptimer3 {
+	status = "okay";
+	timer {
+		status = "okay";
+	};
+};
+
 &ltdc {
 	rotation-memory = <&ltdc_sec_rotation>;
 	status = "okay";
