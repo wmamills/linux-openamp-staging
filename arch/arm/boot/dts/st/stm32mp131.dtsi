@@ -1574,7 +1574,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 
-			part_number_otp: part_number_otp@4 {
+			part_number_otp: part-number-otp@4 {
 				reg = <0x4 0x2>;
 				bits = <0 12>;
 			};
