@@ -215,6 +215,11 @@
 	};
 };
 
+&gpu {
+	contiguous-area = <&gpu_reserved>;
+	status = "disabled";
+};
+
 &hpdma {
 	memory-region = <&hpdma1_lli>;
 };
