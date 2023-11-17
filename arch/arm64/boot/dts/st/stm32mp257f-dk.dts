@@ -45,6 +45,32 @@
 		};
 	};
 
+	dmic0: dmic-0 {
+		compatible = "dmic-codec";
+		#sound-dai-cells = <1>;
+		sound-name-prefix = "dmic0";
+		status = "okay";
+
+		port {
+			dmic0_endpoint: endpoint {
+				remote-endpoint = <&mdf_endpoint0>;
+			};
+		};
+	};
+
+	dmic1: dmic-1 {
+		compatible = "dmic-codec";
+		#sound-dai-cells = <1>;
+		sound-name-prefix = "dmic1";
+		status = "okay";
+
+		port {
+			dmic1_endpoint: endpoint {
+				remote-endpoint = <&mdf_endpoint1>;
+			};
+		};
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -120,6 +146,13 @@
 		gpios = <&gpioi 7 GPIO_ACTIVE_HIGH>;
 		default-on;
 		default-brightness-level = <0>;
+		status = "okay";
+	};
+
+	sound {
+		compatible = "audio-graph-card";
+		label = "STM32MP25-DK";
+		dais = <&i2s2_port &mdf1_port0 &mdf1_port1>;
 		status = "okay";
 	};
 
@@ -309,6 +342,13 @@
 					remote-endpoint = <&hdmi_connector_in>;
 				};
 			};
+
+			port@2 {
+				reg = <2>;
+				adv7535_tx_endpoint: endpoint {
+					remote-endpoint = <&i2s2_endpoint>;
+				};
+			};
 		};
 	};
 
@@ -333,6 +373,21 @@
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
+};
+
+&i2s2 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&i2s2_pins_b>;
+	pinctrl-1 = <&i2s2_sleep_pins_b>;
+	status = "okay";
+
+	i2s2_port: port {
+		i2s2_endpoint: endpoint {
+			remote-endpoint = <&adv7535_tx_endpoint>;
+			format = "i2s";
+			mclk-fs = <256>;
+		};
+	};
 };
 
 &ipcc1 {
@@ -398,6 +453,67 @@
 			<&vdev0vring1>, <&vdev0buffer>;
 	st,syscfg-nsvtor = <&a35ss_syscfg 0xa8 0xffffff80>;
 	status = "okay";
+};
+
+&mdf1 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&mdf_cck0_pins_a>;
+	pinctrl-1 = <&mdf_cck0_sleep_pins_a>;
+	#clock-cells = <1>;
+	clock-output-names = "cck0";
+	clock-frequency = <2048000>;
+	status = "okay";
+
+	sitf6: sitf@380 {
+		pinctrl-names = "default", "sleep";
+		pinctrl-0 = <&mdf_sdi6_pins_a>;
+		pinctrl-1 = <&mdf_sdi6_sleep_pins_a>;
+		st,sitf-mode = "spi";
+		clocks = <&mdf1 0>;
+		status = "okay";
+	};
+
+	filter0: filter@84  {
+		st,cic-mode = <5>;
+		st,sitf = <&sitf6 0>;
+		st,hpf-filter-cutoff-bp = <625>;
+		status = "okay";
+
+		asoc_pdm0: mdf-dai {
+			compatible = "st,stm32mp25-mdf-dai";
+			#sound-dai-cells = <0>;
+			io-channels = <&filter0 0>;
+			power-domains = <&RET_PD>;
+			status = "okay";
+
+			mdf1_port0: port {
+				mdf_endpoint0: endpoint {
+					remote-endpoint = <&dmic0_endpoint>;
+				};
+			};
+		};
+	};
+
+	filter1: filter@104  {
+		st,cic-mode = <5>;
+		st,sitf = <&sitf6 1>;
+		st,hpf-filter-cutoff-bp = <625>;
+		status = "okay";
+
+		asoc_pdm1: mdf-dai {
+			compatible = "st,stm32mp25-mdf-dai";
+			#sound-dai-cells = <0>;
+			io-channels = <&filter1 0>;
+			power-domains = <&RET_PD>;
+			status = "okay";
+
+			mdf1_port1: port {
+				mdf_endpoint1: endpoint {
+					remote-endpoint = <&dmic1_endpoint>;
+				};
+			};
+		};
+	};
 };
 
 &mlahb {
