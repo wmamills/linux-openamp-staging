@@ -14,6 +14,7 @@
 		dmas = <&mdma 28 0x0 0x400202 0x0 0x0 0x0>,
 		       <&mdma 29 0x3 0x400808 0x0 0x0 0x0>;
 		dma-names = "in", "out";
+		access-controllers = <&etzpc 42>;
 		status = "disabled";
 	};
 };

@@ -47,6 +47,7 @@
 		#interrupt-cells = <1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		access-controllers = <&etzpc 32>;
 		status = "disabled";
 
 		adc1: adc@0 {
@@ -91,6 +92,7 @@
 		snps,pbl = <2>;
 		snps,axi-config = <&stmmac_axi_config_2>;
 		snps,tso;
+		access-controllers = <&etzpc 49>;
 		status = "disabled";
 
 		stmmac_axi_config_2: stmmac-axi-config {
