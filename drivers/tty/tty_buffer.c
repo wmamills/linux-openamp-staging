@@ -400,6 +400,7 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 
 	while (head) {
 		struct tty_buffer *next;
+		u8 *p, *f = NULL;
 		unsigned int count;
 
 		/*
@@ -418,16 +419,11 @@ static void lookahead_bufs(struct tty_port *port, struct tty_buffer *head)
 			continue;
 		}
 
-		if (port->client_ops->lookahead_buf) {
-			u8 *p, *f = NULL;
+		p = char_buf_ptr(head, head->lookahead);
+		if (head->flags)
+			f = flag_buf_ptr(head, head->lookahead);
 
-			p = char_buf_ptr(head, head->lookahead);
-			if (head->flags)
-				f = flag_buf_ptr(head, head->lookahead);
-
-			port->client_ops->lookahead_buf(port, p, f, count);
-		}
-
+		port->client_ops->lookahead_buf(port, p, f, count);
 		head->lookahead += count;
 	}
 }
