@@ -89,6 +89,19 @@ properties:
   access-controllers:
     maxItems: 1
 
+  wake-gpios:
+    description: GPIO controlled connection to WAKE# input signal
+    maxItems: 1
+
+  wakeup-source: true
+
+if:
+  required:
+     - wakeup-source
+then:
+  required:
+     - wake-gpios
+
   st,limit_mrrs:
     type: boolean
     description: If present limit downstream MRRS to 256B
@@ -109,6 +122,7 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/phy/phy.h>
     #include <dt-bindings/clock/st,stm32mp25-rcc.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -143,5 +157,7 @@ examples:
              phy-names = "pcie-phy";
              resets = <&rcc PCIE_R>;
              reset-names = "pcie";
+             wakeup-source;
+             wake-gpios = <&gpioh 5 GPIO_ACTIVE_LOW | GPIO_PULL_UP>;
              msi-parent = <&v2m0>;
     };
