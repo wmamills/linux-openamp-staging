@@ -207,6 +207,8 @@
 };
 
 &csi {
+	vdd-supply =  <&scmi_vddcore>;
+	vdda18-supply = <&scmi_v1v8>;
 	status = "disabled";
 	ports {
 		#address-cells = <1>;
