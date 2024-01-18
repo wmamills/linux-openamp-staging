@@ -81,6 +81,7 @@ struct stm32_usb2phy {
 	struct regulator *vdd33, *vdda18;
 	enum phy_mode mode;
 	u32 mask_trim1, value_trim1, mask_trim2, value_trim2;
+	bool is_init;
 	struct clk_hw clk48_hw;
 	atomic_t en_refcnt;
 	const struct stm32mp2_usb2phy_hw_data *hw_data;
@@ -293,6 +294,48 @@ static int stm32_usb2phy_disable(struct stm32_usb2phy *phy_dev)
 	return 0;
 }
 
+static int stm32_usb2phy_suspend(struct device *dev)
+{
+	struct stm32_usb2phy *phy_dev = dev_get_drvdata(dev);
+	int ret;
+
+	/*
+	 * Usb2-phy should be turned off since it is not needed for
+	 * wakeup capability. In case usb-remote wakeup is not enabled,
+	 * usb2-phy is already turned off by HCD driver using exit callback
+	 */
+	if (phy_dev->is_init) {
+		ret = stm32_usb2phy_disable(phy_dev);
+		if (ret) {
+			dev_err(dev, "can't disable usb2phy (%d)\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
+static int stm32_usb2phy_resume(struct device *dev)
+{
+	struct stm32_usb2phy *phy_dev = dev_get_drvdata(dev);
+	int ret;
+
+	/*
+	 * If usb2-phy was turned off by suspend call for wakeup then needs
+	 * to be turned back ON in resume. In case usb-remote wakeup is not
+	 * enabled, usb2-phy is already turned ON by HCD driver using init callback
+	 */
+	if (phy_dev->is_init) {
+		ret = stm32_usb2phy_enable(phy_dev);
+		if (ret) {
+			dev_err(dev, "can't enable usb2phy (%d)\n", ret);
+			return ret;
+		}
+	}
+
+	return 0;
+}
+
 static int stm32_usb2phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	int ret;
@@ -386,6 +429,8 @@ static int stm32_usb2phy_init(struct phy *phy)
 		}
 	}
 
+	phy_dev->is_init = true;
+
 	return 0;
 
 error_disable:
@@ -404,6 +449,8 @@ static int stm32_usb2phy_exit(struct phy *phy)
 		dev_err(phy_dev->dev, "can't disable usb2phy (%d)\n", ret);
 		return ret;
 	}
+
+	phy_dev->is_init = false;
 
 	return 0;
 }
@@ -713,6 +760,9 @@ static int stm32_usb2phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static DEFINE_SIMPLE_DEV_PM_OPS(stm32_usb2phy_pm_ops, stm32_usb2phy_suspend,
+				stm32_usb2phy_resume);
+
 static const struct of_device_id stm32_usb2phy_of_match[] = {
 	{ .compatible = "st,stm32mp25-usb2phy" },
 	{ /* sentinel */ },
@@ -723,7 +773,8 @@ static struct platform_driver stm32_usb2phy_driver = {
 	.probe = stm32_usb2phy_probe,
 	.driver = {
 		.name = "stm32-usb2phy",
-		.of_match_table = stm32_usb2phy_of_match
+		.of_match_table = stm32_usb2phy_of_match,
+		.pm = pm_sleep_ptr(&stm32_usb2phy_pm_ops)
 	}
 };
 
