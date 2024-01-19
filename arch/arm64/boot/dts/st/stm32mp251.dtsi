@@ -2264,6 +2264,8 @@
 				ranges = <0x482e0000 0x482e0000 0x20000>;
 				access-controllers = <&rifsc 63>;
 				power-domains = <&CLUSTER_PD>;
+				wakeup-source;
+				interrupts-extended = <&exti1 43 IRQ_TYPE_EDGE_RISING>;
 				status = "disabled";
 
 				usbh_ohci: usb@482e0000 {
@@ -2274,6 +2276,7 @@
 					interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 					phys = <&usb2_phy1>;
 					phy-names = "usb";
+					wakeup-source;
 				};
 
 				usbh_ehci: usb@482f0000 {
@@ -2285,6 +2288,7 @@
 					companion = <&usbh_ohci>;
 					phys = <&usb2_phy1>;
 					phy-names = "usb";
+					wakeup-source;
 				};
 			};
 
