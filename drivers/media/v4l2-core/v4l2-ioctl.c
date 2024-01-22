@@ -1452,6 +1452,8 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 	case V4L2_PIX_FMT_Y210:		descr = "10-bit YUYV Packed"; break;
 	case V4L2_PIX_FMT_Y212:		descr = "12-bit YUYV Packed"; break;
 	case V4L2_PIX_FMT_Y216:		descr = "16-bit YUYV Packed"; break;
+	case V4L2_META_FMT_ST_DCMIPP_ISP_PARAMS: descr = "STM32 DCMIPP ISP Parameters"; break;
+	case V4L2_META_FMT_ST_DCMIPP_ISP_STAT: descr = "STM32 DCMIPP ISP Statistics"; break;
 
 	default:
 		/* Compressed formats */
