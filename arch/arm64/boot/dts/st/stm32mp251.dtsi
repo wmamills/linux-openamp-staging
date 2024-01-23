@@ -2598,6 +2598,7 @@
 			compatible = "st,stm32mp1-exti";
 			interrupt-controller;
 			#interrupt-cells = <2>;
+			power-domains = <&RET_PD>;
 			reg = <0x44220000 0x400>;
 			interrupts-extended =
 				<&intc GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>,	/* EXTI_0 */
