@@ -54,6 +54,7 @@ struct ltdc_device {
 	struct clk *ltdc_clk;	/* kernel clock */
 	struct clk *lvds_clk;	/* lvds clock */
 	struct mutex err_lock;	/* protecting error_status */
+	struct mutex act_lock;	/* protecting active status */
 	struct ltdc_caps caps;
 	u32 irq_status;
 	u32 fifo_err;		/* fifo underrun error counter */
@@ -65,6 +66,8 @@ struct ltdc_device {
 	struct drm_atomic_state *suspend_state;
 	int crc_skip_count;
 	bool crc_active;
+	bool vblank_active;
+	u32 crc;
 	u32 max_burst_length;
 	struct reserved_mem *rot_mem;
 };
