@@ -12,6 +12,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/phy/phy.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include "pcie-designware.h"
@@ -216,6 +217,8 @@ static void stm32_pcie_perst_assert(struct dw_pcie *pci)
 
 	stm32_pcie_disable_resources(stm32_pcie);
 
+	pm_runtime_put_sync(dev);
+
 	stm32_pcie->link_status = STM32_PCIE_EP_LINK_DISABLED;
 }
 
@@ -233,9 +236,16 @@ static void stm32_pcie_perst_deassert(struct dw_pcie *pci)
 
 	dev_dbg(dev, "PERST de-asserted by host. Starting link training\n");
 
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "pm runtime resume failed: %d\n", ret);
+		return;
+	}
+
 	ret = stm32_pcie_enable_resources(stm32_pcie);
 	if (ret) {
 		dev_err(dev, "Failed to enable resources: %d\n", ret);
+		pm_runtime_put_sync(dev);
 		return;
 	}
 
@@ -243,6 +253,7 @@ static void stm32_pcie_perst_deassert(struct dw_pcie *pci)
 	if (ret) {
 		dev_err(dev, "PCIe Cannot establish link: %d\n", ret);
 		stm32_pcie_disable_resources(stm32_pcie);
+		pm_runtime_put_sync(dev);
 		return;
 	}
 
@@ -251,6 +262,7 @@ static void stm32_pcie_perst_deassert(struct dw_pcie *pci)
 		dev_err(dev, "Failed to complete initialization: %d\n", ret);
 		stm32_pcie_disable_link(pci);
 		stm32_pcie_disable_resources(stm32_pcie);
+		pm_runtime_put_sync(dev);
 		return;
 	}
 
@@ -288,9 +300,16 @@ static int stm32_add_pcie_ep(struct stm32_pcie *stm32_pcie,
 	if (ret)
 		return ret;
 
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		dev_err(dev, "pm runtime resume failed: %d\n", ret);
+		return ret;
+	}
+
 	ret = reset_control_reset(stm32_pcie->rst);
 	if (ret) {
 		dev_err(dev, "reset_control_reset failed %d\n", ret);
+		pm_runtime_put_sync(dev);
 		return ret;
 	}
 
@@ -299,6 +318,7 @@ static int stm32_add_pcie_ep(struct stm32_pcie *stm32_pcie,
 	ret = stm32_pcie_enable_resources(stm32_pcie);
 	if (ret) {
 		dev_err(dev, "failed to enable resources: %d\n", ret);
+		pm_runtime_put_sync(dev);
 		return ret;
 	}
 
@@ -306,6 +326,7 @@ static int stm32_add_pcie_ep(struct stm32_pcie *stm32_pcie,
 	if (ret) {
 		dev_err(dev, "failed to initialize ep: %d\n", ret);
 		stm32_pcie_disable_resources(stm32_pcie);
+		pm_runtime_put_sync(dev);
 		return ret;
 	}
 
@@ -323,6 +344,7 @@ static int stm32_add_pcie_ep(struct stm32_pcie *stm32_pcie,
 		dev_err(dev, "Failed to request PERST IRQ: %d\n", ret);
 		dw_pcie_ep_exit(ep);
 		stm32_pcie_disable_resources(stm32_pcie);
+		pm_runtime_put_sync(dev);
 	}
 
 	return ret;
@@ -380,6 +402,12 @@ static int stm32_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, stm32_pcie);
 
+	ret = devm_pm_runtime_enable(dev);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable pm runtime %d\n", ret);
+		return ret;
+	}
+
 	return stm32_add_pcie_ep(stm32_pcie, pdev);
 }
 
@@ -393,6 +421,8 @@ static int stm32_pcie_remove(struct platform_device *pdev)
 	dw_pcie_ep_exit(ep);
 
 	stm32_pcie_disable_resources(stm32_pcie);
+
+	pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 }
