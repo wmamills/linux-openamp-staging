@@ -960,6 +960,7 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 	struct drm_device *ddev = crtc->dev;
 	int layer_index = 0;
+	int ret;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -983,6 +984,15 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	pinctrl_pm_select_sleep_state(ddev->dev);
 
 	pm_runtime_put_sync_suspend(ddev->dev);
+
+	/* restore to kernel ltdc clock as parent of pixel clock */
+	if (ldev->ltdc_clk) {
+		ret = clk_set_parent(ldev->pixel_clk, ldev->ltdc_clk);
+		if (ret) {
+			DRM_ERROR("Could not set parent clock: %d\n", ret);
+			return;
+		}
+	}
 
 	/*  clear interrupt error counters */
 	mutex_lock(&ldev->err_lock);
@@ -1095,6 +1105,24 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 
 	if (connector)
 		orientation = connector->display_info.panel_orientation;
+
+	if (encoder->encoder_type == DRM_MODE_ENCODER_LVDS) {
+		if (ldev->lvds_clk) {
+			ret = clk_set_parent(ldev->pixel_clk, ldev->lvds_clk);
+			if (ret) {
+				DRM_ERROR("Could not set parent clock: %d\n", ret);
+				return;
+			}
+		}
+	} else {
+		if (ldev->ltdc_clk) {
+			ret = clk_set_parent(ldev->pixel_clk, ldev->ltdc_clk);
+			if (ret) {
+				DRM_ERROR("Could not set parent clock: %d\n", ret);
+				return;
+			}
+		}
+	}
 
 	if (clk_set_rate(ldev->pixel_clk, rate) < 0) {
 		DRM_ERROR("Cannot set rate (%dHz) for pixel clk\n", rate);
@@ -2277,6 +2305,11 @@ int ltdc_load(struct drm_device *ddev)
 			ldev->max_burst_length = 0;
 		else
 			ldev->max_burst_length = mbl / 8;
+
+		ldev->ltdc_clk = devm_clk_get(dev, "ref");
+		if (IS_ERR(ldev->ltdc_clk))
+			return dev_err_probe(dev, PTR_ERR(ldev->ltdc_clk),
+					     "Unable to get ltdc clock\n");
 
 		ldev->bus_clk = devm_clk_get(dev, "bus");
 		if (IS_ERR(ldev->bus_clk))
