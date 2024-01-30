@@ -110,13 +110,16 @@ static inline struct otm8009a *panel_to_otm8009a(struct drm_panel *panel)
 	return container_of(panel, struct otm8009a, panel);
 }
 
-static void otm8009a_dcs_write_buf(struct otm8009a *ctx, const void *data,
-				   size_t len)
+static int otm8009a_dcs_write_buf(struct otm8009a *ctx, const void *data, size_t len)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
+	int ret = 0;
 
-	if (mipi_dsi_dcs_write_buffer(dsi, data, len) < 0)
+	ret = mipi_dsi_dcs_write_buffer(dsi, data, len);
+	if (ret < 0)
 		dev_warn(ctx->dev, "mipi dsi dcs write buffer failed\n");
+
+	return ret;
 }
 
 #define dcs_write_seq(ctx, seq...)			\
@@ -395,10 +398,11 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 {
 	struct otm8009a *ctx = bl_get_data(bd);
 	u8 data[2];
+	int ret = 0;
 
 	if (!ctx->prepared) {
 		dev_dbg(&bd->dev, "lcd not ready yet for setting its backlight!\n");
-		return -ENXIO;
+		return ret;
 	}
 
 	if (bd->props.power <= FB_BLANK_NORMAL) {
@@ -408,7 +412,9 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 		 */
 		data[0] = MIPI_DCS_SET_DISPLAY_BRIGHTNESS;
 		data[1] = bd->props.brightness;
-		otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+		ret = otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+		if (ret < 0)
+			return ret;
 
 		/* set Brightness Control & Backlight on */
 		data[1] = 0x24;
@@ -420,7 +426,9 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 
 	/* Update Brightness Control & Backlight */
 	data[0] = MIPI_DCS_WRITE_CONTROL_DISPLAY;
-	otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+	ret = otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+	if (ret < 0)
+		return ret;
 
 	return 0;
 }
