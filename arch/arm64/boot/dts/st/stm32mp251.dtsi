@@ -83,12 +83,6 @@
 	};
 
 	clocks {
-		clk_dsi_txbyte: txbyteclk {
-			#clock-cells = <0>;
-			compatible = "fixed-clock";
-			clock-frequency = <0>;
-		};
-
 		clk_rcbsec: clk-rcbsec {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -2066,20 +2060,6 @@
 				status = "disabled";
 			};
 
-			dsi: dsi@48000000 {
-				compatible = "st,stm32-dsi";
-				reg = <0x48000000 0x800>;
-				#clock-cells = <0>;
-				clocks = <&rcc CK_BUS_DSI>, <&rcc CK_KER_DSIPHY>,
-					 <&rcc CK_KER_LTDC>;
-				clock-names = "pclk", "ref", "px_clk";
-				resets = <&rcc DSI_R>;
-				reset-names = "apb";
-				access-controllers = <&rifsc 81>;
-				power-domains = <&CLUSTER_PD>;
-				status = "disabled";
-			};
-
 			ltdc: display-controller@48010000 {
 				compatible = "st,stm32-ltdc";
 				reg = <0x48010000 0x400>;
@@ -2452,8 +2432,7 @@
 				<&scmi_clk CK_SCMI_ICN_APBDBG>,
 				<&scmi_clk CK_SCMI_TIMG1>,
 				<&scmi_clk CK_SCMI_TIMG2>,
-				<&scmi_clk CK_SCMI_PLL3>,
-				<&clk_dsi_txbyte>;
+				<&scmi_clk CK_SCMI_PLL3>;
 			access-controllers = <&rifsc 156>;
 		};
 

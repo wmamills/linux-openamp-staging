@@ -69,18 +69,6 @@
 		status = "disabled";
 	};
 
-	lvds: lvds@48060000 {
-		#clock-cells = <0>;
-		compatible = "st,stm32-lvds";
-		reg = <0x48060000 0x2000>;
-		clocks = <&rcc CK_BUS_LVDS>, <&rcc CK_KER_LVDSPHY>, <&syscfg 0>;
-		clock-names = "pclk", "ref", "pixclk";
-		resets = <&rcc LVDS_R>;
-		access-controllers = <&rifsc 84>;
-		power-domains = <&CLUSTER_PD>;
-		status = "disabled";
-	};
-
 	eth2: eth2@482d0000 {
 		compatible = "st,stm32mp25-dwmac", "snps,dwmac-5.10a";
 		reg = <0x482d0000 0x4000>;
@@ -130,14 +118,4 @@
 			queue3 {};
 		};
 	};
-};
-
-&dsi {
-	clocks = <&rcc CK_BUS_DSI>, <&rcc CK_KER_DSIPHY>, <&rcc CK_KER_LTDC>, <&syscfg 0>;
-	clock-names = "pclk", "ref", "px_clk", "pixclk";
-};
-
-&ltdc {
-	clocks = <&rcc CK_BUS_LTDC>, <&rcc CK_KER_LTDC>, <&syscfg 0>;
-	clock-names = "bus", "ref", "lcd";
 };
