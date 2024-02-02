@@ -165,7 +165,7 @@
 };
 
 &dcmipp {
-	status = "disabled";
+	status = "okay";
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&dcmipp_pins_a>;
 	pinctrl-1 = <&dcmipp_sleep_pins_a>;
@@ -249,7 +249,7 @@
 	stmipi: stmipi@14 {
 		compatible = "st,st-mipid02";
 		reg = <0x14>;
-		status = "disabled";
+		status = "okay";
 		clocks = <&clk_mco1>;
 		clock-names = "xclk";
 		VDDE-supply = <&scmi_v1v8_periph>;
@@ -286,18 +286,19 @@
 		compatible = "galaxycore,gc2145";
 		reg = <0x3c>;
 		clocks = <&clk_ext_camera>;
-		IOVDD-supply = <&scmi_v3v3_sw>;
-		AVDD-supply = <&scmi_v3v3_sw>;
-		DVDD-supply = <&scmi_v3v3_sw>;
+		iovdd-supply = <&scmi_v3v3_sw>;
+		avdd-supply = <&scmi_v3v3_sw>;
+		dvdd-supply = <&scmi_v3v3_sw>;
 		powerdown-gpios = <&mcp23017 3 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
 		reset-gpios = <&mcp23017 4 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
-		status = "disabled";
+		status = "okay";
 
 		port {
 			gc2145_ep: endpoint {
 				remote-endpoint = <&mipid02_0>;
 				clock-lanes = <0>;
 				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <120000000 192000000 240000000>;
 			};
 		};
 	};
