@@ -2087,8 +2087,8 @@
 				status = "disabled";
 			};
 
-			csi2host: csi2host@48020000 {
-				compatible = "st,stm32-csi2host";
+			csi: csi@48020000 {
+				compatible = "st,stm32mp25-csi";
 				reg = <0x48020000 0x2000>;
 				interrupts = <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
 				resets = <&rcc CSI_R>;
