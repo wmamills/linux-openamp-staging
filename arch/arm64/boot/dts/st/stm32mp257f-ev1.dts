@@ -202,7 +202,7 @@
 };
 
 &dcmipp {
-	status = "disabled";
+	status = "okay";
 	port {
 		dcmipp_0: endpoint {
 			remote-endpoint = <&csi_source>;
