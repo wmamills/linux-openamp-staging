@@ -65,6 +65,7 @@ struct dcmipp_device {
 
 	/* Hardware resources */
 	void __iomem			*regs;
+	struct clk			*mclk;
 	struct clk			*kclk;
 
 	/* The pipeline configuration */
