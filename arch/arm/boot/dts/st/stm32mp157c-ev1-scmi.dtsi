@@ -4,15 +4,7 @@
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
-/dts-v1/;
-
-#include "stm32mp157c-ed1.dts"
-#include "stm32mp15-scmi.dtsi"
-
 / {
-	model = "STMicroelectronics STM32MP157C-ED1 SCMI eval daughter";
-	compatible = "st,stm32mp157c-ed1-scmi", "st,stm32mp157";
-
 	reserved-memory {
 		optee@fe000000 {
 			reg = <0xfe000000 0x2000000>;
@@ -35,6 +27,7 @@
 };
 
 &dsi {
+	phy-dsi-supply = <&scmi_reg18>;
 	clocks = <&rcc DSI_K>, <&scmi_clk CK_SCMI_HSE>, <&rcc DSI_PX>;
 };
 
@@ -56,15 +49,16 @@
 	clocks = <&rcc IWDG2>, <&scmi_clk CK_SCMI_LSI>;
 };
 
+&m_can1 {
+	clocks = <&scmi_clk CK_SCMI_HSE>, <&rcc FDCAN_K>;
+};
+
 &mdma1 {
 	resets = <&scmi_reset RST_SCMI_MDMA>;
 };
 
-&m4_rproc {
-	/delete-property/ st,syscfg-holdboot;
-	resets = <&scmi_reset RST_SCMI_MCU>,
-		 <&scmi_reset RST_SCMI_MCU_HOLD_BOOT>;
-	reset-names =  "mcu_rst", "hold_boot";
+&mlahb {
+	resets = <&scmi_reset RST_SCMI_MCU>;
 };
 
 &rcc {

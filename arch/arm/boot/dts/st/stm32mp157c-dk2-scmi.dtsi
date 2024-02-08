@@ -4,15 +4,9 @@
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
-/dts-v1/;
-
-#include "stm32mp157c-dk2.dts"
 #include "stm32mp15-scmi.dtsi"
 
 / {
-	model = "STMicroelectronics STM32MP157C-DK2 SCMI Discovery Board";
-	compatible = "st,stm32mp157c-dk2-scmi", "st,stm32mp157";
-
 	reserved-memory {
 		optee@de000000 {
 			reg = <0xde000000 0x2000000>;
@@ -61,11 +55,8 @@
 	resets = <&scmi_reset RST_SCMI_MDMA>;
 };
 
-&m4_rproc {
-	/delete-property/ st,syscfg-holdboot;
-	resets = <&scmi_reset RST_SCMI_MCU>,
-		 <&scmi_reset RST_SCMI_MCU_HOLD_BOOT>;
-	reset-names =  "mcu_rst", "hold_boot";
+&mlahb {
+	resets = <&scmi_reset RST_SCMI_MCU>;
 };
 
 &rcc {
