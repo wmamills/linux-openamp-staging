@@ -575,15 +575,16 @@ static int dcmipp_probe(struct platform_device *pdev)
 	dcmipp->mdev.dev = &pdev->dev;
 	media_device_init(&dcmipp->mdev);
 
+	pm_runtime_enable(dcmipp->dev);
+
 	/* Initialize subdevs */
 	ret = dcmipp_create_subdevs(dcmipp);
 	if (ret) {
+		pm_runtime_disable(dcmipp->dev);
 		media_device_cleanup(&dcmipp->mdev);
 		v4l2_device_unregister(&dcmipp->v4l2_dev);
 		return ret;
 	}
-
-	pm_runtime_enable(dcmipp->dev);
 
 	dev_info(&pdev->dev, "Probe done");
 
