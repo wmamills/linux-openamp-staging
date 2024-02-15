@@ -138,6 +138,10 @@
 	status = "okay";
 };
 
+&crc {
+	status = "okay";
+};
+
 &csi2host {
 	status = "disabled";
 	ports {
