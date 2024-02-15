@@ -255,5 +255,9 @@ struct dcmipp_ent_device *
 dcmipp_pixelcap_ent_init(const char *entity_name,
 			 struct dcmipp_device *dcmipp);
 void dcmipp_pixelcap_ent_release(struct dcmipp_ent_device *ved);
+struct dcmipp_ent_device *
+dcmipp_statcap_ent_init(const char *entity_name,
+			struct dcmipp_device *dcmipp);
+void dcmipp_statcap_ent_release(struct dcmipp_ent_device *ved);
 
 #endif
