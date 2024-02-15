@@ -142,6 +142,10 @@
 	status = "okay";
 };
 
+&cryp1 {
+	status = "okay";
+};
+
 &csi2host {
 	status = "disabled";
 	ports {
