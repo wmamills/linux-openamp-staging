@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/of.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_atomic.h>
@@ -183,9 +184,30 @@ static int stm_drm_platform_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct drm_device *ddev;
-	int ret;
+	struct device *sfdev;
+	struct device_node *node;
+	int ret = 0;
 
 	DRM_DEBUG("%s\n", __func__);
+
+	/*
+	 * To avoid conflicts between the simple-framebuffer and the display-controller,
+	 * a check was added concerning the state of the simple-framebuffer (must be probed).
+	 */
+	node = of_find_compatible_node(NULL, NULL, "simple-framebuffer");
+	if (!IS_ERR(node)) {
+		if (of_device_is_available(node)) {
+			sfdev = bus_find_device_by_of_node(&platform_bus_type, node);
+			if (sfdev) {
+				if (!device_is_bound(sfdev))
+					ret = -EPROBE_DEFER;
+				put_device(sfdev);
+			}
+		}
+		of_node_put(node);
+		if (ret)
+			return ret;
+	}
 
 	ret = drm_aperture_remove_framebuffers(&drv_driver);
 	if (ret)
