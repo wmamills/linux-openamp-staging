@@ -1086,16 +1086,19 @@ static int lvds_probe(struct platform_device *pdev)
 		return  PTR_ERR(lvds->vdda18_supply);
 	}
 
-	rstc = devm_reset_control_get_exclusive(dev, NULL);
+	/* To obtain a continuous display after the probe, reset shouldn't be done */
+	if (!device_property_read_bool(dev, "default-on")) {
+		rstc = devm_reset_control_get_exclusive(dev, NULL);
 
-	if (IS_ERR(rstc)) {
-		ret = PTR_ERR(rstc);
-		return ret;
+		if (IS_ERR(rstc)) {
+			ret = PTR_ERR(rstc);
+			return ret;
+		}
+
+		reset_control_assert(rstc);
+		usleep_range(10, 20);
+		reset_control_deassert(rstc);
 	}
-
-	reset_control_assert(rstc);
-	usleep_range(10, 20);
-	reset_control_deassert(rstc);
 
 	port1 = of_graph_get_port_by_id(dev->of_node, 1);
 	port2 = of_graph_get_port_by_id(dev->of_node, 2);
@@ -1185,6 +1188,13 @@ static int lvds_probe(struct platform_device *pdev)
 	pm_runtime_enable(lvds->dev);
 	drm_bridge_add(&lvds->lvds_bridge);
 	platform_set_drvdata(pdev, lvds);
+
+	/*
+	 * To obtain a continuous display after the probe,
+	 *  the clocks must remain activated
+	 */
+	if (device_property_read_bool(dev, "default-on"))
+		pm_runtime_get_sync(dev);
 
 	return 0;
 }
