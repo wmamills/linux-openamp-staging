@@ -1263,6 +1263,8 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 				     struct drm_atomic_state *state)
 {
 	struct ltdc_device *ldev = plane_to_ltdc(plane);
+	struct drm_device *ddev = plane->dev;
+	struct device *dev = ddev->dev;
 	struct drm_plane_state *newstate = drm_atomic_get_new_plane_state(state,
 									  plane);
 	struct drm_framebuffer *fb = newstate->fb;
@@ -1467,6 +1469,10 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 			regmap_write(ldev->regmap, LTDC_L1PCR + lofs, 0);
 		}
 	}
+
+	/* Configure burst length */
+	if (of_device_is_compatible(dev->of_node, "st,stm32mp25-ltdc"))
+		regmap_write(ldev->regmap, LTDC_L1BLCR + lofs, ldev->max_burst_length);
 
 	/* Enable layer and CLUT if needed */
 	val = fb->format->format == DRM_FORMAT_C8 ? LXCR_CLUTEN : 0;
@@ -1944,6 +1950,7 @@ int ltdc_load(struct drm_device *ddev)
 	struct resource *res;
 	int irq, i, nb_endpoints;
 	int ret = -ENODEV;
+	u32 mbl;
 
 	DRM_DEBUG_DRIVER("\n");
 
@@ -1965,6 +1972,14 @@ int ltdc_load(struct drm_device *ddev)
 	}
 
 	if (of_device_is_compatible(np, "st,stm32mp25-ltdc")) {
+		/* Get max burst length */
+		ret = of_property_read_u32(np, "st,burstlen", &mbl);
+		if (ret)
+			/* set to max burst length value */
+			ldev->max_burst_length = 0;
+		else
+			ldev->max_burst_length = mbl / 8;
+
 		ldev->bus_clk = devm_clk_get(dev, "bus");
 		if (IS_ERR(ldev->bus_clk))
 			return dev_err_probe(dev, PTR_ERR(ldev->bus_clk),
