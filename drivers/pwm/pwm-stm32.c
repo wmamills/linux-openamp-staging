@@ -606,6 +606,9 @@ static int stm32_pwm_detect_channels(struct stm32_pwm *priv, struct stm32_timers
 		 */
 		npwm = FIELD_GET(TIM_HWCFGR1_NB_OF_CC, val);
 
+		regmap_read(priv->regmap, TIM_CCER, &ccer);
+		*num_enabled = hweight32(ccer & TIM_CCER_CCXE);
+
 		return npwm < MAX_PWM_OUTPUT ? npwm : MAX_PWM_OUTPUT;
 	}
 
