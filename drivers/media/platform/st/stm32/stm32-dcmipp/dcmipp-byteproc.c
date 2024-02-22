@@ -96,6 +96,10 @@ struct dcmipp_byteproc_device {
 	struct device *dev;
 	void __iomem *regs;
 	bool streaming;
+
+	struct v4l2_fract sink_interval;
+	struct v4l2_fract src_interval;
+	unsigned int frate;
 };
 
 static const struct v4l2_mbus_framefmt fmt_default = {
@@ -399,10 +403,41 @@ static int dcmipp_byteproc_set_selection(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static const unsigned int dcmipp_frates[] = {1, 2, 4, 8};
+
+static int dcmipp_byteproc_enum_frame_interval
+				(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_state *sd_state,
+				 struct v4l2_subdev_frame_interval_enum *fie)
+{
+	struct dcmipp_byteproc_device *byteproc = v4l2_get_subdevdata(sd);
+	struct v4l2_fract *sink_interval = &byteproc->sink_interval;
+	unsigned int ratio;
+
+	if (fie->pad > 1 ||
+	    fie->index >= (IS_SRC(fie->pad) ? ARRAY_SIZE(dcmipp_frates) : 1) ||
+	    fie->width > DCMIPP_FRAME_MAX_WIDTH ||
+	    fie->height > DCMIPP_FRAME_MAX_HEIGHT)
+		return -EINVAL;
+
+	if (IS_SINK(fie->pad)) {
+		fie->interval = *sink_interval;
+		return 0;
+	}
+
+	ratio = dcmipp_frates[fie->index];
+
+	fie->interval.numerator = sink_interval->numerator * ratio;
+	fie->interval.denominator = sink_interval->denominator;
+
+	return 0;
+}
+
 static const struct v4l2_subdev_pad_ops dcmipp_byteproc_pad_ops = {
 	.init_cfg		= dcmipp_byteproc_init_cfg,
 	.enum_mbus_code		= dcmipp_byteproc_enum_mbus_code,
 	.enum_frame_size	= dcmipp_byteproc_enum_frame_size,
+	.enum_frame_interval	= dcmipp_byteproc_enum_frame_interval,
 	.get_fmt		= v4l2_subdev_get_fmt,
 	.set_fmt		= dcmipp_byteproc_set_fmt,
 	.get_selection		= dcmipp_byteproc_get_selection,
@@ -478,6 +513,72 @@ static int dcmipp_byteproc_configure_scale_crop
 	return 0;
 }
 
+static void dcmipp_byteproc_configure_framerate
+			(struct dcmipp_byteproc_device *byteproc)
+{
+	/* Frame skipping */
+	reg_clear(byteproc, DCMIPP_P0FCTCR, DCMIPP_P0FCTCR_FRATE_MASK);
+	reg_set(byteproc, DCMIPP_P0FCTCR, byteproc->frate);
+}
+
+static int dcmipp_byteproc_g_frame_interval(struct v4l2_subdev *sd,
+					    struct v4l2_subdev_frame_interval *fi)
+{
+	struct dcmipp_byteproc_device *byteproc = v4l2_get_subdevdata(sd);
+
+	if (IS_SINK(fi->pad))
+		fi->interval = byteproc->sink_interval;
+	else
+		fi->interval = byteproc->src_interval;
+
+	return 0;
+}
+
+static int dcmipp_byteproc_s_frame_interval(struct v4l2_subdev *sd,
+					    struct v4l2_subdev_frame_interval *fi)
+{
+	struct dcmipp_byteproc_device *byteproc = v4l2_get_subdevdata(sd);
+
+	if (byteproc->streaming)
+		return -EBUSY;
+
+	if (fi->interval.numerator == 0 || fi->interval.denominator == 0)
+		fi->interval = byteproc->sink_interval;
+
+	if (IS_SINK(fi->pad)) {
+		/*
+		 * Setting sink frame interval resets frame skipping.
+		 * Sink frame interval is propagated to src.
+		 */
+		byteproc->frate = 0;
+		byteproc->sink_interval = fi->interval;
+		byteproc->src_interval = byteproc->sink_interval;
+	} else {
+		unsigned int ratio;
+
+		/* Normalize ratio */
+		ratio = (byteproc->sink_interval.denominator *
+			 fi->interval.numerator) /
+			(byteproc->sink_interval.numerator *
+			 fi->interval.denominator);
+
+		/* Hardware can skip 1 frame over 2, 4 or 8 */
+		byteproc->frate = ratio >= 8 ? 3 :
+				  ratio >= 4 ? 2 :
+				  ratio >= 2 ? 1 : 0;
+
+		ratio = dcmipp_frates[byteproc->frate];
+
+		/* Adjust src frame interval to what hardware can really do */
+		byteproc->src_interval.numerator =
+			byteproc->sink_interval.numerator * ratio;
+		byteproc->src_interval.denominator =
+			byteproc->sink_interval.denominator;
+	}
+
+	return 0;
+}
+
 static int dcmipp_byteproc_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct dcmipp_byteproc_device *byteproc = v4l2_get_subdevdata(sd);
@@ -492,6 +593,8 @@ static int dcmipp_byteproc_s_stream(struct v4l2_subdev *sd, int enable)
 	s_subdev = media_entity_to_v4l2_subdev(pad->entity);
 
 	if (enable) {
+		dcmipp_byteproc_configure_framerate(byteproc);
+
 		ret = dcmipp_byteproc_configure_scale_crop(byteproc);
 		if (ret)
 			return ret;
@@ -519,6 +622,8 @@ static int dcmipp_byteproc_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 static const struct v4l2_subdev_video_ops dcmipp_byteproc_video_ops = {
+	.g_frame_interval = dcmipp_byteproc_g_frame_interval,
+	.s_frame_interval = dcmipp_byteproc_s_frame_interval,
 	.s_stream = dcmipp_byteproc_s_stream,
 };
 
