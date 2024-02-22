@@ -13,6 +13,7 @@ maintainers:
 properties:
   compatible:
     const: st,stm32-ltdc
+    const: st,stm32mp25-ltdc
 
   reg:
     maxItems: 1
