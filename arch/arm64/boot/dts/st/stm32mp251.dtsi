@@ -2157,6 +2157,8 @@
 				st,syscfg = <&syscfg>;
 				access-controllers = <&rifsc 67>;
 				power-domains = <&CLUSTER_PD>;
+				wakeup-source;
+				interrupts-extended = <&exti1 45 IRQ_TYPE_EDGE_FALLING>;
 				status = "disabled";
 			};
 
