@@ -621,9 +621,6 @@ static int stm32_ospi_prepare_to_send(struct spi_device *spi,
 	};
 
 	if (op->cmd.dtr && !flash->dtr_calibration_done_once) {
-		if (spi->cs_gpiod)
-			gpiod_set_value_cansleep(spi->cs_gpiod, false);
-
 		stm32_omi_dlyb_stop(omi);
 		flash->sample_later = false;
 		flash->octal_dtr = (op->cmd.nbytes == 2);
@@ -633,8 +630,6 @@ static int stm32_ospi_prepare_to_send(struct spi_device *spi,
 			return ret;
 
 		flash->dtr_mode = true;
-		if (spi->cs_gpiod)
-			gpiod_set_value_cansleep(spi->cs_gpiod, true);
 	}
 
 	/*
