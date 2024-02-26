@@ -262,7 +262,7 @@
 
 &gpu {
 	contiguous-area = <&gpu_reserved>;
-	status = "disabled";
+	status = "okay";
 };
 
 &hpdma {
