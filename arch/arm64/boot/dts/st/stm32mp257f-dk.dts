@@ -634,7 +634,7 @@
 	cap-sdio-irq;
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "disabled";
+	status = "okay";
 
 	brcmf: bcrmf@1 {
 		reg = <1>;
@@ -650,7 +650,7 @@
 	pinctrl-1 = <&usart1_sleep_pins_a>;
 	pinctrl-2 = <&usart1_idle_pins_a>;
 	uart-has-rtscts;
-	status = "disabled";
+	status = "okay";
 
 	bluetooth {
 		shutdown-gpios = <&gpiog 4 GPIO_ACTIVE_HIGH>;
