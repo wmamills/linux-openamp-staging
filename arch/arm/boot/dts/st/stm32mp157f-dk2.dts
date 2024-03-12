@@ -124,7 +124,7 @@
 	mmc-pwrseq = <&wifi_pwrseq>;
 	#address-cells = <1>;
 	#size-cells = <0>;
-	status = "disabled";
+	status = "okay";
 
 	brcmf: bcrmf@1 {
 		reg = <1>;
@@ -132,7 +132,6 @@
 		interrupt-parent = <&gpiod>;
 		interrupts = <0 IRQ_TYPE_LEVEL_HIGH>; /* WL_HOST_WAKE */
 		interrupt-names = "host-wake";
-		status = "disabled";
 	};
 };
 
@@ -151,6 +150,5 @@
 		max-speed = <3000000>;
 		vbat-supply = <&v3v3>;
 		vddio-supply = <&v3v3>;
-		status = "disabled";
 	};
 };
