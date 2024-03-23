@@ -520,7 +520,9 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 
 	/* Enable interruptions */
 	vcap->cmier |= DCMIPP_CMIER_PxALL(vcap->pipe_id);
+	spin_lock(&vcap->vdev.v4l2_dev->lock);
 	reg_set(vcap, DCMIPP_CMIER, vcap->cmier);
+	spin_unlock(&vcap->vdev.v4l2_dev->lock);
 
 	/* Snapshot mode */
 	reg_set(vcap, DCMIPP_PxFCTCR(vcap->pipe_id), DCMIPP_PxFCTCR_CPTMODE);
@@ -588,7 +590,9 @@ static void dcmipp_pixelcap_stop_streaming(struct vb2_queue *vq)
 	media_pipeline_stop(vcap->vdev.entity.pads);
 
 	/* Disable interruptions */
+	spin_lock(&vcap->vdev.v4l2_dev->lock);
 	reg_clear(vcap, DCMIPP_CMIER, vcap->cmier);
+	spin_unlock(&vcap->vdev.v4l2_dev->lock);
 
 	/* Stop capture */
 	reg_clear(vcap, DCMIPP_PxFCTCR(vcap->pipe_id), DCMIPP_PxFCTCR_CPTREQ);
