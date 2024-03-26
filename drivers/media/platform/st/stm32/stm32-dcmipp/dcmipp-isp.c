@@ -614,23 +614,13 @@ static const struct v4l2_subdev_ops dcmipp_isp_ops = {
 	.video = &dcmipp_isp_video_ops,
 };
 
-static void dcmipp_isp_release(struct v4l2_subdev *sd)
-{
-	struct dcmipp_isp_device *isp = v4l2_get_subdevdata(sd);
-
-	kfree(isp);
-}
-
-static const struct v4l2_subdev_internal_ops dcmipp_isp_int_ops = {
-	.release = dcmipp_isp_release,
-};
-
 void dcmipp_isp_ent_release(struct dcmipp_ent_device *ved)
 {
 	struct dcmipp_isp_device *isp =
 			container_of(ved, struct dcmipp_isp_device, ved);
 
 	dcmipp_ent_sd_unregister(ved, &isp->sd);
+	kfree(isp);
 }
 
 static int dcmipp_isp_link_validate(struct media_link *link)
@@ -673,7 +663,7 @@ struct dcmipp_ent_device *dcmipp_isp_ent_init(const char *entity_name,
 				     &dcmipp->v4l2_dev, entity_name,
 				     MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER,
 				     ARRAY_SIZE(pads_flag), pads_flag,
-				     &dcmipp_isp_int_ops, &dcmipp_isp_ops,
+				     NULL, &dcmipp_isp_ops,
 				     NULL, NULL);
 	if (ret) {
 		kfree(isp);

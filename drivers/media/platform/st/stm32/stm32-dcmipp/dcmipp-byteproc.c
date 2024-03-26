@@ -632,23 +632,13 @@ static const struct v4l2_subdev_ops dcmipp_byteproc_ops = {
 	.video = &dcmipp_byteproc_video_ops,
 };
 
-static void dcmipp_byteproc_release(struct v4l2_subdev *sd)
-{
-	struct dcmipp_byteproc_device *byteproc = v4l2_get_subdevdata(sd);
-
-	kfree(byteproc);
-}
-
-static const struct v4l2_subdev_internal_ops dcmipp_byteproc_int_ops = {
-	.release = dcmipp_byteproc_release,
-};
-
 void dcmipp_byteproc_ent_release(struct dcmipp_ent_device *ved)
 {
 	struct dcmipp_byteproc_device *byteproc =
 			container_of(ved, struct dcmipp_byteproc_device, ved);
 
 	dcmipp_ent_sd_unregister(ved, &byteproc->sd);
+	kfree(byteproc);
 }
 
 struct dcmipp_ent_device *
@@ -673,7 +663,7 @@ dcmipp_byteproc_ent_init(const char *entity_name,
 				     &dcmipp->v4l2_dev, entity_name,
 				     MEDIA_ENT_F_PROC_VIDEO_SCALER,
 				     ARRAY_SIZE(pads_flag), pads_flag,
-				     &dcmipp_byteproc_int_ops,
+				     NULL,
 				     &dcmipp_byteproc_ops,
 				     NULL, NULL);
 	if (ret) {
