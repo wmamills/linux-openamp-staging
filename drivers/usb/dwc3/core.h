@@ -983,6 +983,7 @@ struct dwc3_scratchpad_array {
  * @bounce_addr: dma address of @bounce
  * @ep0_usb_req: dummy req used while handling STD USB requests
  * @ep0_in_setup: one control transfer is completed and enter setup phase
+ * @xhci_plat_data: private data for xhci callback
  * @lock: for synchronizing
  * @mutex: for mode switching
  * @dev: pointer to our struct device
@@ -1144,6 +1145,8 @@ struct dwc3 {
 	dma_addr_t		bounce_addr;
 	struct dwc3_request	ep0_usb_req;
 	struct completion	ep0_in_setup;
+
+	void			*xhci_plat_data;
 
 	/* device lock */
 	spinlock_t		lock;
