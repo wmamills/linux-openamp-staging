@@ -3,6 +3,7 @@
  * Copyright (C) STMicroelectronics 2023 - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
+#include <dt-bindings/power/st,stm32mp25-power.h>
 #include "stm32mp253.dtsi"
 
 &ltdc {
@@ -64,7 +65,7 @@
 		resets = <&rcc GPU_R>;
 		clock-names = "axi", "core";
 		clocks = <&rcc CK_BUS_GPU>, <&rcc CK_KER_GPU>;
-		gpu-supply =  <&scmi_vddgpu>;
+		power-domains = <&scmi_devpd PD_SCMI_GPU>;
 		access-controllers = <&rifsc 79>;
 		status = "disabled";
 	};
