@@ -2651,7 +2651,6 @@
 			compatible = "st,stm32mp257-pinctrl";
 			ranges = <0 0x44240000 0xa0400>;
 			interrupt-parent = <&exti1>;
-			pins-are-numbered;
 			interrupts-extended =
 				<&exti1  0 0>, <&exti1  1 0>, <&exti1  2 0>, <&exti1  3 0>,
 				<&exti1  4 0>, <&exti1  5 0>, <&exti1  6 0>, <&exti1  7 0>,
@@ -2800,7 +2799,6 @@
 			compatible = "st,stm32mp257-z-pinctrl";
 			ranges = <0 0x46200000 0x400>;
 			interrupt-parent = <&exti1>;
-			pins-are-numbered;
 
 			gpioz: gpio@46200000 {
 				gpio-controller;
