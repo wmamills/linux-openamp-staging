@@ -160,6 +160,14 @@
 				status = "disabled";
 			};
 
+			crc: crc@404c0000 {
+				compatible = "st,stm32f7-crc";
+				reg = <0x404c0000 0x400>;
+				clocks = <&rcc CK_BUS_CRC>;
+				access-controllers = <&rifsc 109>;
+				status = "disabled";
+			};
+
 			sdmmc1: mmc@48220000 {
 				compatible = "st,stm32mp25-sdmmc2", "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00353180>;
