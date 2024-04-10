@@ -16,7 +16,7 @@
 	compatible = "st,stm32mp215f-dk", "st,stm32mp215";
 
 	aliases {
-		/* serial0 = &usart2; */
+		serial0 = &usart2;
 	};
 
 	chosen {
@@ -39,4 +39,14 @@
 			no-map;
 		};
 	};
+};
+
+&usart2 {
+	pinctrl-names = "default", "idle", "sleep";
+	pinctrl-0 = <&usart2_pins_a>;
+	pinctrl-1 = <&usart2_idle_pins_a>;
+	pinctrl-2 = <&usart2_sleep_pins_a>;
+	/delete-property/dmas;
+	/delete-property/dma-names;
+	status = "okay";
 };
