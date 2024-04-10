@@ -17,6 +17,7 @@
 
 	aliases {
 		serial0 = &usart2;
+		serial1 = &usart6;
 		serial2 = &uart4;
 		serial3 = &usart1;
 	};
@@ -69,6 +70,15 @@
 	pinctrl-0 = <&usart1_pins_a>;
 	pinctrl-1 = <&usart1_sleep_pins_a>;
 	pinctrl-2 = <&usart1_idle_pins_a>;
+	uart-has-rtscts;
+	status = "disabled";
+};
+
+&usart6 {
+	pinctrl-names = "default", "idle", "sleep";
+	pinctrl-0 = <&usart6_pins_a>;
+	pinctrl-1 = <&usart6_idle_pins_a>;
+	pinctrl-2 = <&usart6_sleep_pins_a>;
 	uart-has-rtscts;
 	status = "disabled";
 };
