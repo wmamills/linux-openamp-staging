@@ -591,6 +591,13 @@ static int stm32_omi_probe(struct platform_device *pdev)
 	omi->vdev = vdev;
 	platform_set_drvdata(pdev, omi);
 
+	/*
+	 * OMI children are not proper OF platform devices, so in order for them
+	 * to be treated as valid DMA masters we need a bit of a hack to force
+	 * them to inherit the OSPI node DMA configuration.
+	 */
+	of_dma_configure(&vdev->dev, dev->of_node, true);
+
 	ret = platform_device_add(vdev);
 	if (ret) {
 		platform_device_put(vdev);
