@@ -216,6 +216,7 @@
 			#size-cells = <1>;
 			#access-controller-cells = <1>;
 			ranges;
+			dma-ranges;
 
 			spi2: spi@400b0000 {
 				#address-cells = <1>;
