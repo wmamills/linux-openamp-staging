@@ -458,8 +458,10 @@ struct ffa_notifier_ops {
 				      ffa_sched_recv_cb cb, void *cb_data);
 	int (*sched_recv_cb_unregister)(struct ffa_device *dev);
 	int (*notify_request)(struct ffa_device *dev, bool per_vcpu,
-			      ffa_notifier_cb cb, void *cb_data, int notify_id);
-	int (*notify_relinquish)(struct ffa_device *dev, int notify_id);
+			      ffa_notifier_cb cb, void *cb_data, int notify_id,
+			      bool is_framework);
+	int (*notify_relinquish)(struct ffa_device *dev, int notify_id,
+				 bool is_framework);
 	int (*notify_send)(struct ffa_device *dev, int notify_id, bool per_vcpu,
 			   u16 vcpu);
 };
