@@ -819,7 +819,8 @@ static void optee_ffa_remove(struct ffa_device *ffa_dev)
 
 	if (bottom_half_id != U32_MAX)
 		ffa_dev->ops->notifier_ops->notify_relinquish(ffa_dev,
-							      bottom_half_id);
+							      bottom_half_id,
+							      false);
 	optee_remove_common(optee);
 
 	mutex_destroy(&optee->ffa.mutex);
@@ -840,7 +841,8 @@ static int optee_ffa_async_notif_init(struct ffa_device *ffa_dev,
 								is_per_vcpu,
 								notif_callback,
 								optee,
-								notif_id);
+								notif_id,
+								false);
 		if (!rc)
 			break;
 		/*
@@ -861,7 +863,8 @@ static int optee_ffa_async_notif_init(struct ffa_device *ffa_dev,
 	rc = enable_async_notif(optee);
 	if (rc < 0) {
 		ffa_dev->ops->notifier_ops->notify_relinquish(ffa_dev,
-							      notif_id);
+							      notif_id,
+							      false);
 		optee->ffa.bottom_half_value = U32_MAX;
 	}
 
@@ -980,7 +983,8 @@ err_unregister_devices:
 	optee_unregister_devices();
 	if (optee->ffa.bottom_half_value != U32_MAX)
 		notif_ops->notify_relinquish(ffa_dev,
-					     optee->ffa.bottom_half_value);
+					     optee->ffa.bottom_half_value,
+					     false);
 	optee_notif_uninit(optee);
 err_close_ctx:
 	teedev_close_context(ctx);

@@ -1170,7 +1170,8 @@ static enum notify_type ffa_notify_type_get(u16 vm_id)
 		return NON_SECURE_VM;
 }
 
-static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
+static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id,
+				 bool is_framework)
 {
 	int rc;
 	enum notify_type type = ffa_notify_type_get(dev->vm_id);
@@ -1180,6 +1181,9 @@ static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
 
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
+
+	if (is_framework)
+		return -EOPNOTSUPP;
 
 	mutex_lock(&drv_info->notify_lock);
 
@@ -1198,7 +1202,8 @@ static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id)
 }
 
 static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
-			      ffa_notifier_cb cb, void *cb_data, int notify_id)
+			      ffa_notifier_cb cb, void *cb_data, int notify_id,
+			      bool is_framework)
 {
 	int rc;
 	u32 flags = 0;
@@ -1209,6 +1214,9 @@ static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
+
+	if (is_framework)
+		return -EOPNOTSUPP;
 
 	mutex_lock(&drv_info->notify_lock);
 
