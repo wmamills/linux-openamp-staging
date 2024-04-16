@@ -788,6 +788,8 @@ static int ffa_notification_bitmap_destroy(void)
 #define SPM_FRAMEWORK_BITMAP			BIT(2)
 #define NS_HYP_FRAMEWORK_BITMAP			BIT(3)
 
+#define FRAMEWORK_NOTIFY_RX_BUFFER_FULL		BIT(0)
+
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
 {
@@ -1065,7 +1067,8 @@ struct notifier_cb_info {
 	struct hlist_node hnode;
 	ffa_notifier_cb cb;
 	void *cb_data;
-	enum notify_type type;
+	int vm_id;
+	bool is_framework;
 };
 
 static int ffa_sched_recv_cb_update(u16 part_id, ffa_sched_recv_cb callback,
@@ -1119,27 +1122,43 @@ static int ffa_notification_unbind(u16 dst_id, u64 bitmap)
 	return ffa_notification_bind_common(dst_id, bitmap, 0, false);
 }
 
-/* Should be called while the notify_lock is taken */
+static enum notify_type ffa_notify_type_get(u16 vm_id)
+{
+	if (vm_id & FFA_SECURE_PARTITION_ID_FLAG)
+		return SECURE_PARTITION;
+	else
+		return NON_SECURE_VM;
+}
+
+/* notifier_hash_node_get should be called with notify_lock held */
 static struct notifier_cb_info *
-notifier_hash_node_get(u16 notify_id, enum notify_type type)
+notifier_hash_node_get(u16 notify_id, int vm_id, bool is_framework)
 {
 	struct notifier_cb_info *node;
+	enum notify_type type = ffa_notify_type_get(vm_id);
 
 	hash_for_each_possible(drv_info->notifier_hash, node, hnode, notify_id)
-		if (type == node->type)
-			return node;
+		if (is_framework) {
+			if (node->is_framework && vm_id == node->vm_id)
+				return node;
+		} else {
+			if (!node->is_framework &&
+			    type == ffa_notify_type_get(node->vm_id))
+				return node;
+		}
 
 	return NULL;
 }
 
 static int
-update_notifier_cb(int notify_id, enum notify_type type, ffa_notifier_cb cb,
-		   void *cb_data, bool is_registration)
+update_notifier_cb(struct ffa_device *dev, int notify_id, ffa_notifier_cb cb,
+		   void *cb_data, bool is_registration, bool is_framework)
 {
 	struct notifier_cb_info *cb_info = NULL;
 	bool cb_found;
 
-	cb_info = notifier_hash_node_get(notify_id, type);
+	cb_info = notifier_hash_node_get(notify_id, dev->vm_id, is_framework);
+
 	cb_found = !!cb_info;
 
 	if (!(is_registration ^ cb_found))
@@ -1150,7 +1169,8 @@ update_notifier_cb(int notify_id, enum notify_type type, ffa_notifier_cb cb,
 		if (!cb_info)
 			return -ENOMEM;
 
-		cb_info->type = type;
+		cb_info->vm_id = dev->vm_id;
+		cb_info->is_framework = is_framework;
 		cb_info->cb = cb;
 		cb_info->cb_data = cb_data;
 
@@ -1162,19 +1182,10 @@ update_notifier_cb(int notify_id, enum notify_type type, ffa_notifier_cb cb,
 	return 0;
 }
 
-static enum notify_type ffa_notify_type_get(u16 vm_id)
-{
-	if (vm_id & FFA_SECURE_PARTITION_ID_FLAG)
-		return SECURE_PARTITION;
-	else
-		return NON_SECURE_VM;
-}
-
 static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id,
 				 bool is_framework)
 {
 	int rc;
-	enum notify_type type = ffa_notify_type_get(dev->vm_id);
 
 	if (ffa_notifications_disabled())
 		return -EOPNOTSUPP;
@@ -1182,19 +1193,18 @@ static int ffa_notify_relinquish(struct ffa_device *dev, int notify_id,
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
 
-	if (is_framework)
-		return -EOPNOTSUPP;
-
 	mutex_lock(&drv_info->notify_lock);
 
-	rc = update_notifier_cb(notify_id, type, NULL, NULL, false);
+	rc = update_notifier_cb(dev, notify_id, NULL, NULL, false,
+				is_framework);
 	if (rc) {
 		pr_err("Could not unregister notification callback\n");
 		mutex_unlock(&drv_info->notify_lock);
 		return rc;
 	}
 
-	rc = ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+	if (!is_framework)
+		rc = ffa_notification_unbind(dev->vm_id, BIT(notify_id));
 
 	mutex_unlock(&drv_info->notify_lock);
 
@@ -1207,7 +1217,6 @@ static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 {
 	int rc;
 	u32 flags = 0;
-	enum notify_type type = ffa_notify_type_get(dev->vm_id);
 
 	if (ffa_notifications_disabled())
 		return -EOPNOTSUPP;
@@ -1215,25 +1224,26 @@ static int ffa_notify_request(struct ffa_device *dev, bool is_per_vcpu,
 	if (notify_id >= FFA_MAX_NOTIFICATIONS)
 		return -EINVAL;
 
-	if (is_framework)
-		return -EOPNOTSUPP;
-
 	mutex_lock(&drv_info->notify_lock);
 
-	if (is_per_vcpu)
-		flags = PER_VCPU_NOTIFICATION_FLAG;
+	if (!is_framework) {
+		if (is_per_vcpu)
+			flags = PER_VCPU_NOTIFICATION_FLAG;
 
-	rc = ffa_notification_bind(dev->vm_id, BIT(notify_id), flags);
-	if (rc) {
-		mutex_unlock(&drv_info->notify_lock);
-		return rc;
+		rc = ffa_notification_bind(dev->vm_id, BIT(notify_id), flags);
+		if (rc) {
+			mutex_unlock(&drv_info->notify_lock);
+			return rc;
+		}
 	}
 
-	rc = update_notifier_cb(notify_id, type, cb, cb_data, true);
+	rc = update_notifier_cb(dev, notify_id, cb, cb_data, true,
+				is_framework);
 	if (rc) {
 		pr_err("Failed to register callback for %d - %d\n",
 		       notify_id, rc);
-		ffa_notification_unbind(dev->vm_id, BIT(notify_id));
+		if (!is_framework)
+			ffa_notification_unbind(dev->vm_id, BIT(notify_id));
 	}
 	mutex_unlock(&drv_info->notify_lock);
 
@@ -1255,6 +1265,40 @@ static int ffa_notify_send(struct ffa_device *dev, int notify_id,
 				    BIT(notify_id));
 }
 
+static void handle_framework_notif_callbacks(u64 bitmap)
+{
+	int notify_id = 0, recv_vm_id;
+	struct ffa_indirect_msg_hdr *msg, *buf;
+	struct notifier_cb_info *cb_info = NULL;
+
+	/* Only one framework notification defined and supported */
+	if (!(bitmap & FRAMEWORK_NOTIFY_RX_BUFFER_FULL))
+		return;
+
+	mutex_lock(&drv_info->rx_lock);
+
+	msg = drv_info->rx_buffer;
+	recv_vm_id = RECEIVER_ID(msg->send_recv_id);
+	buf = kmalloc(sizeof(*buf) + msg->size, GFP_KERNEL);
+	if (!buf) {
+		mutex_unlock(&drv_info->rx_lock);
+		return;
+	}
+	memcpy(buf, msg + msg->offset, sizeof(*buf) + msg->size);
+	buf->offset = sizeof(*buf);
+	mutex_unlock(&drv_info->rx_lock);
+
+	ffa_rx_release();
+
+	mutex_lock(&drv_info->notify_lock);
+	cb_info = notifier_hash_node_get(notify_id, recv_vm_id, true);
+	mutex_unlock(&drv_info->notify_lock);
+
+	if (cb_info && cb_info->cb)
+		cb_info->cb(notify_id, buf);
+	kfree(buf);
+}
+
 static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 {
 	int notify_id;
@@ -1266,7 +1310,7 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 			continue;
 
 		mutex_lock(&drv_info->notify_lock);
-		cb_info = notifier_hash_node_get(notify_id, type);
+		cb_info = notifier_hash_node_get(notify_id, type, false);
 		mutex_unlock(&drv_info->notify_lock);
 
 		if (cb_info && cb_info->cb)
@@ -1286,9 +1330,9 @@ static void notif_get_and_handle(void *unused)
 		return;
 	}
 
+	handle_framework_notif_callbacks(bitmaps.arch_map);
 	handle_notif_callbacks(bitmaps.vm_map, NON_SECURE_VM);
 	handle_notif_callbacks(bitmaps.sp_map, SECURE_PARTITION);
-	handle_notif_callbacks(bitmaps.arch_map, FRAMEWORK);
 }
 
 static void
