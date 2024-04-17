@@ -319,7 +319,7 @@
 #define RCC_OSPI2CFGR				0x518
 #define RCC_FMCCFGR				0x51C
 #define RCC_DBGCFGR				0x520
-#define RCC_STM500CFGR				0x524
+#define RCC_STMCFGR				0x524
 #define RCC_ETRCFGR				0x528
 #define RCC_GPIOACFGR				0x52C
 #define RCC_GPIOBCFGR				0x530
@@ -2791,9 +2791,9 @@
 #define RCC_DBGCFGR_TRACEEN			BIT(9)
 #define RCC_DBGCFGR_DBGRST			BIT(12)
 
-/* RCC_STM500CFGR register fields */
-#define RCC_STM500CFGR_STM500EN			BIT(1)
-#define RCC_STM500CFGR_STM500LPEN		BIT(2)
+/* RCC_STMCFGR register fields */
+#define RCC_STMCFGR_STMEN			BIT(1)
+#define RCC_STMCFGR_STMLPEN			BIT(2)
 
 /* RCC_ETRCFGR register fields */
 #define RCC_ETRCFGR_ETREN			BIT(1)

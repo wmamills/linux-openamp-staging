@@ -434,7 +434,7 @@ enum enum_gate_cfg {
 	GATE_SRAM1,
 	GATE_SRAM2,
 	GATE_STGEN,
-	GATE_STM500,
+	GATE_STM,
 	GATE_SYSCPU1,
 	GATE_SYSRAM,
 	GATE_TRACE,
@@ -637,7 +637,7 @@ static const struct stm32_gate_cfg stm32mp25_gates[GATE_NB] = {
 	GATE_CFG(GATE_SRAM1,		RCC_SRAM1CFGR,		1,	0),
 	GATE_CFG(GATE_SRAM2,		RCC_SRAM2CFGR,		1,	0),
 	GATE_CFG(GATE_STGEN,		RCC_STGENCFGR,		1,	0),
-	GATE_CFG(GATE_STM500,		RCC_STM500CFGR,		1,	0),
+	GATE_CFG(GATE_STM,		RCC_STMCFGR,		1,	0),
 	GATE_CFG(GATE_SYSCPU1,		RCC_SYSCPU1CFGR,	1,	0),
 	GATE_CFG(GATE_SYSRAM,		RCC_SYSRAMCFGR,		1,	0),
 	GATE_CFG(GATE_TRACE,		RCC_DBGCFGR,		9,	0),
@@ -2497,6 +2497,18 @@ static unsigned long cs_stm32_timer_recalc_rate(struct clk_stm32_clock_data *dat
 		.clks		= _parents,					\
 	}
 
+#define CS_GATE_DIV(_name, _parent, _gate, _div)				\
+	static struct clk_summary cs_##_name = {				\
+		.name		= #_name,					\
+		.gate_id	= (_gate),					\
+		.mux_id		= NO_STM32_MUX,					\
+		.div_id		= (_div),					\
+		.is_enabled	= cs_stm32_gate_is_enabled,			\
+		.get_rate	= cs_stm32_div_get_rate,			\
+		.nb_parents	= 1,						\
+		.clks		= (struct clk_summary *[]) {  &cs_##_parent },	\
+	}
+
 #define CS_PLL(_name, _parents, _gate, _mux, _offset)				\
 	static struct clk_summary cs_##_name = {				\
 		.name		= #_name,					\
@@ -2659,7 +2671,7 @@ CS_DIV(ck_icn_apb1, ck_icn_ls_mcu, DIV_APB1);
 CS_DIV(ck_icn_apb2, ck_icn_ls_mcu, DIV_APB2);
 CS_DIV(ck_icn_apb3, ck_icn_ls_mcu, DIV_APB3);
 CS_DIV(ck_icn_apb4, ck_icn_ls_mcu, DIV_APB4);
-CS_DIV(ck_icn_apbdbg, ck_icn_ls_mcu, DIV_APBDBG);
+CS_GATE_DIV(ck_icn_apbdbg, ck_icn_ls_mcu, GATE_DBG, DIV_APBDBG);
 
 CS_STM32_TIMER(ck_timg1, ck_icn_apb1, RCC_APB1DIVR, RCC_TIMG1PRER);
 CS_STM32_TIMER(ck_timg2, ck_icn_apb2, RCC_APB2DIVR, RCC_TIMG2PRER);
@@ -2711,7 +2723,7 @@ CS_GATE(ck_icn_p_hsem, ck_icn_ls_mcu, GATE_HSEM);
 CS_GATE(ck_icn_p_rtc, ck_icn_ls_mcu, GATE_RTC);
 CS_GATE(ck_icn_p_iwdg5, ck_icn_ls_mcu, GATE_IWDG5);
 CS_GATE(ck_icn_p_wwdg2, ck_icn_ls_mcu, GATE_WWDG2);
-CS_GATE(ck_icn_s_stm500, ck_icn_ls_mcu, GATE_STM500);
+CS_GATE(ck_icn_s_stm, ck_icn_ls_mcu, GATE_STM);
 CS_GATE(ck_icn_p_fmc, ck_icn_ls_mcu, GATE_FMC);
 CS_GATE(ck_icn_p_eth1, ck_icn_ls_mcu, GATE_ETH1);
 CS_GATE(ck_icn_p_ethsw, ck_icn_ls_mcu, GATE_ETHSWMAC);
@@ -2811,6 +2823,8 @@ CS_GATE(ck_icn_p_stgen, ck_icn_apb4, GATE_STGEN);
 CS_GATE(ck_icn_p_vdec, ck_icn_apb4, GATE_VDEC);
 CS_GATE(ck_icn_p_venc, ck_icn_apb4, GATE_VENC);
 CS_GATE(ck_sys_dbg, ck_icn_apbdbg, GATE_DBG);
+CS_GATE(ck_icn_p_stm, ck_icn_apbdbg, GATE_STM);
+CS_GATE(ck_icn_p_etr, ck_icn_apbdbg, GATE_ETR);
 CS_GATE(ck_ker_tim2, ck_timg1, GATE_TIM2);
 CS_GATE(ck_ker_tim3, ck_timg1, GATE_TIM3);
 CS_GATE(ck_ker_tim4, ck_timg1, GATE_TIM4);
@@ -3098,7 +3112,7 @@ static struct clk_summary *stm32mp25_clock_summary[] = {
 	CS_CLOCK(ck_icn_p_rtc),
 	CS_CLOCK(ck_icn_p_iwdg5),
 	CS_CLOCK(ck_icn_p_wwdg2),
-	CS_CLOCK(ck_icn_s_stm500),
+	CS_CLOCK(ck_icn_s_stm),
 	CS_CLOCK(ck_icn_p_fmc),
 	CS_CLOCK(ck_icn_p_eth1),
 	CS_CLOCK(ck_icn_p_ethsw),
@@ -3198,6 +3212,8 @@ static struct clk_summary *stm32mp25_clock_summary[] = {
 	CS_CLOCK(ck_icn_p_vdec),
 	CS_CLOCK(ck_icn_p_venc),
 	CS_CLOCK(ck_sys_dbg),
+	CS_CLOCK(ck_icn_p_stm),
+	CS_CLOCK(ck_icn_p_etr),
 	CS_CLOCK(ck_ker_tim2),
 	CS_CLOCK(ck_ker_tim3),
 	CS_CLOCK(ck_ker_tim4),
