@@ -148,10 +148,6 @@
 						reg = <VOLTD_SCMI_UCPD>;
 						regulator-name = "vdd33ucpd";
 					};
-					scmi_vdd33usb: regulator@6 {
-						reg = <VOLTD_SCMI_USB33>;
-						regulator-name = "vdd33usb";
-					};
 					scmi_vdda18adc: regulator@7 {
 						reg = <VOLTD_SCMI_ADC>;
 						regulator-name = "vdda18adc";
@@ -266,7 +262,6 @@
 		st,syscfg       = <&syscfg 0x2400>;
 		clocks          = <&rcc CK_KER_USB2PHY1>;
 		resets          = <&rcc USB2PHY1_R>;
-		vdd33-supply    = <&scmi_vdd33usb>;
 		status          = "disabled";
 	};
 
@@ -276,7 +271,6 @@
 		st,syscfg       = <&syscfg 0x2800>;
 		clocks          = <&rcc CK_KER_USB2PHY2EN>;
 		resets          = <&rcc USB2PHY2_R>;
-		vdd33-supply    = <&scmi_vdd33usb>;
 		status          = "disabled";
 	};
 
