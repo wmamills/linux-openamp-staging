@@ -403,7 +403,7 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 	struct v4l2_ctrl_isp_stat_region *region;
 	struct v4l2_subdev_selection sel;
 	struct media_pad *pad;
-	int ret;
+	int ret = 0;
 
 	dev_dbg(vcap->dev, ">> %s: ctrl->id = 0x%x\n", __func__, ctrl->id);
 
@@ -415,8 +415,10 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 		/* Get pointer to the source subdev (if case of not yet set */
 		if (!vcap->s_subdev) {
 			pad = media_pad_remote_pad_first(&entity->pads[0]);
-			if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
-				return -EIO;
+			if (!pad || !is_media_entity_v4l2_subdev(pad->entity)) {
+				ret = -EIO;
+				goto out;
+			}
 			vcap->s_subdev = media_entity_to_v4l2_subdev(pad->entity);
 		}
 
@@ -424,7 +426,8 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 		if (region->nb_regions > DCMIPP_NB_STAT_REGION) {
 			dev_dbg(vcap->dev, "Unsupported number of stat region: %d vs max=%d\n",
 				region->nb_regions, DCMIPP_NB_STAT_REGION);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
 		/* Get frame information */
@@ -434,7 +437,7 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = v4l2_subdev_call(vcap->s_subdev, pad, get_selection, NULL, &sel);
 		if (ret < 0) {
 			dev_err(vcap->dev, "Failed to get frame size\n");
-			return ret;
+			goto out;
 		}
 
 		if (!region->nb_regions ||
@@ -450,7 +453,8 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 			   (region->left[0] + region->width[0]) > sel.r.width ||
 			   (region->top[0] + region->height[0]) > sel.r.height) {
 			dev_err(vcap->dev, "Invalid or stat region not fitting into frame\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto out;
 		}
 
 		spin_lock_irq(&vcap->irqlock);
@@ -485,7 +489,10 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	}
 
-	return 0;
+out:
+	pm_runtime_put(vcap->dev);
+
+	return ret;
 };
 
 static const struct v4l2_ctrl_ops dcmipp_statcap_ctrl_ops = {
