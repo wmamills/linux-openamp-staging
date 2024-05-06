@@ -776,7 +776,7 @@ static void ipgre_link_update(struct net_device *dev, bool set_mtu)
 		dev->needed_headroom += len;
 
 	if (set_mtu)
-		dev->mtu = max_t(int, dev->mtu - len, 68);
+		WRITE_ONCE(dev->mtu, max_t(int, dev->mtu - len, 68));
 
 	flags = tunnel->parms.o_flags;
 
