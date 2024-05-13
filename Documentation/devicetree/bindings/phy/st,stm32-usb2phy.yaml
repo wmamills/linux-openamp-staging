@@ -17,7 +17,9 @@ maintainers:
 
 properties:
   compatible:
-    const: st,stm32mp25-usb2phy
+    - enum:
+      - st,stm32mp21-usb2phy
+      - st,stm32mp25-usb2phy
 
   "#phy-cells":
     const: 0
