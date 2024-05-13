@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: st,stm32mp25-usbh
+    enum:
+      - const: st,stm32mp21-usbh
+      - const: st,stm32mp25-usbh
 
   "#address-cells":
     const: 1
