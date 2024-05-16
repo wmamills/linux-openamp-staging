@@ -23,6 +23,36 @@
 		};
 	};
 
+	mdf_cck0_pins_a: mdf-cck0-0 {
+		pins1 {
+			pinmux = <STM32_PINMUX('F', 3, AF5)>; /* MDF1_CCK0 */
+			slew-rate = <1>;
+			drive-push-pull;
+			bias-disable;
+		};
+	};
+
+	mdf_cck0_sleep_pins_a: mdf-cck0-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('F', 3, ANALOG)>; /* MDF1_CCK0 */
+		};
+	};
+
+	mdf_sdi3_pins_a: mdf-sdi3-0 {
+		pins1 {
+			pinmux = <STM32_PINMUX('B', 3, AF5)>; /* MDF1_SDI3 */
+			slew-rate = <1>;
+			drive-push-pull;
+			bias-disable;
+		};
+	};
+
+	mdf_sdi3_sleep_pins_a: mdf-sdi3-sleep-0 {
+		pins {
+			pinmux = <STM32_PINMUX('B', 3, ANALOG)>; /* MDF1_SDI3 */
+		};
+	};
+
 	sdmmc1_b4_pins_a: sdmmc1-b4-0 {
 		pins1 {
 			pinmux = <STM32_PINMUX('E', 4, AF10)>, /* SDMMC1_D0 */
