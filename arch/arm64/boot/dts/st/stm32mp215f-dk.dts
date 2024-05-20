@@ -340,6 +340,16 @@
 	};
 };
 
+&m33_rproc {
+	mboxes = <&ipcc1 0x0>, <&ipcc1 0x1>, <&ipcc1 2>;
+	mbox-names = "vq0", "vq1", "shutdown";
+	memory-region = <&cm33_cube_fw>, <&cm33_cube_data>,
+			<&ipc_shmem_1>, <&vdev0vring0>,
+			<&vdev0vring1>, <&vdev0buffer>;
+	st,syscfg-nsvtor = <&a35ss_syscfg 0xa8 0xffffff80>;
+	status = "okay";
+};
+
 &spi1 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&spi1_pins_a>;
