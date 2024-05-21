@@ -48,6 +48,10 @@
 	status = "okay";
 };
 
+&cryp1 {
+	status = "okay";
+};
+
 &i2c2 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c2_pins_a>;
