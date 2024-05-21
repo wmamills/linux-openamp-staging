@@ -1751,7 +1751,8 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	}
 
 	/* Configure burst length */
-	if (of_device_is_compatible(dev->of_node, "st,stm32mp25-ltdc"))
+	if (of_device_is_compatible(dev->of_node, "st,stm32mp21-ltdc") ||
+	    of_device_is_compatible(dev->of_node, "st,stm32mp25-ltdc"))
 		regmap_write(ldev->regmap, LTDC_L1BLCR + lofs, ldev->max_burst_length);
 
 	/* set color look-up table */
@@ -2364,7 +2365,8 @@ int ltdc_load(struct drm_device *ddev)
 	if (!nb_endpoints)
 		return -ENODEV;
 
-	if (of_device_is_compatible(np, "st,stm32mp25-ltdc")) {
+	if (of_device_is_compatible(np, "st,stm32mp21-ltdc") ||
+	    of_device_is_compatible(np, "st,stm32mp25-ltdc")) {
 		/* Get max burst length */
 		ret = of_property_read_u32(np, "st,burstlen", &mbl);
 		if (ret)
@@ -2589,6 +2591,13 @@ int ltdc_get_clk(struct device *dev, struct ltdc_device *ldev)
 		if (PTR_ERR(ldev->pixel_clk) != -EPROBE_DEFER)
 			DRM_ERROR("Unable to get lcd clock\n");
 		return PTR_ERR(ldev->pixel_clk);
+	}
+
+	if (of_device_is_compatible(dev->of_node, "st,stm32mp21-ltdc")) {
+		ldev->bus_clk = devm_clk_get(dev, "bus");
+		if (IS_ERR(ldev->bus_clk))
+			return dev_err_probe(dev, PTR_ERR(ldev->bus_clk),
+					     "Unable to get bus clock\n");
 	}
 
 	if (of_device_is_compatible(dev->of_node, "st,stm32mp25-ltdc")) {

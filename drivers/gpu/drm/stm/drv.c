@@ -281,12 +281,17 @@ static struct ltdc_plat_data stm_drm_plat_data = {
 	.pad_max_freq_hz = 90000000,
 };
 
+static struct ltdc_plat_data stm_drm_plat_data_mp21 = {
+	.pad_max_freq_hz = 150000000,
+};
+
 static struct ltdc_plat_data stm_drm_plat_data_mp25 = {
 	.pad_max_freq_hz = 150000000,
 };
 
 static const struct of_device_id drv_dt_ids[] = {
 	{ .compatible = "st,stm32-ltdc", .data = &stm_drm_plat_data, },
+	{ .compatible = "st,stm32mp21-ltdc", .data = &stm_drm_plat_data_mp21, },
 	{ .compatible = "st,stm32mp25-ltdc", .data = &stm_drm_plat_data_mp25, },
 	{ /* end node */ },
 };
