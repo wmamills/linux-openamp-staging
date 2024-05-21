@@ -138,6 +138,10 @@
 	};
 };
 
+&a35ss_syscfg {
+	status = "okay";
+};
+
 &crc {
 	status = "okay";
 };
