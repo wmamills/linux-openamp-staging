@@ -351,6 +351,14 @@ static void dwc2_driver_remove(struct platform_device *dev)
 
 	if (hsotg->ll_hw_enabled)
 		dwc2_lowlevel_hw_disable(hsotg);
+
+	if (hsotg->params.activate_stm32_bvaloval_en) {
+		u32 ggpio = dwc2_readl(hsotg, GGPIO);
+
+		ggpio &= ~GGPIO_STM32_OTG_GCCFG_IDPULLUP_DIS;
+		ggpio &= ~GGPIO_STM32_OTG_GCCFG_VBVALOVAL;
+		dwc2_writel(hsotg, ggpio, GGPIO);
+	}
 }
 
 /**
@@ -559,6 +567,14 @@ static int dwc2_driver_probe(struct platform_device *dev)
 		usleep_range(5000, 7000);
 	}
 
+	if (hsotg->params.activate_stm32_bvaloval_en) {
+		u32 ggpio = dwc2_readl(hsotg, GGPIO);
+
+		ggpio |= GGPIO_STM32_OTG_GCCFG_IDPULLUP_DIS;
+		ggpio |= GGPIO_STM32_OTG_GCCFG_VBVALOVAL;
+		dwc2_writel(hsotg, ggpio, GGPIO);
+	}
+
 	retval = dwc2_drd_init(hsotg);
 	if (retval) {
 		dev_err_probe(hsotg->dev, retval, "failed to initialize dual-role\n");
@@ -694,6 +710,14 @@ static int __maybe_unused dwc2_suspend(struct device *dev)
 		regulator_disable(dwc2->usb33d);
 	}
 
+	if (dwc2->params.activate_stm32_bvaloval_en) {
+		u32 ggpio = dwc2_readl(dwc2, GGPIO);
+
+		ggpio &= ~GGPIO_STM32_OTG_GCCFG_IDPULLUP_DIS;
+		ggpio &= ~GGPIO_STM32_OTG_GCCFG_VBVALOVAL;
+		dwc2_writel(dwc2, ggpio, GGPIO);
+	}
+
 	if (dwc2->ll_hw_enabled &&
 	    (is_device_mode || dwc2_host_can_poweroff_phy(dwc2))) {
 		ret = __dwc2_lowlevel_hw_disable(dwc2);
@@ -744,6 +768,14 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 			     GOTGCTL_BVALOVAL | GOTGCTL_AVALOVAL);
 		dwc2_writel(dwc2, gotgctl, GOTGCTL);
 		spin_unlock_irqrestore(&dwc2->lock, flags);
+	}
+
+	if (dwc2->params.activate_stm32_bvaloval_en) {
+		u32 ggpio = dwc2_readl(dwc2, GGPIO);
+
+		ggpio |= GGPIO_STM32_OTG_GCCFG_IDPULLUP_DIS;
+		ggpio |= GGPIO_STM32_OTG_GCCFG_VBVALOVAL;
+		dwc2_writel(dwc2, ggpio, GGPIO);
 	}
 
 	if (!dwc2->role_sw) {
