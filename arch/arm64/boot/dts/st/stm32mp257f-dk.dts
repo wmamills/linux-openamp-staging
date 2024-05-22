@@ -290,7 +290,7 @@
 };
 
 &eth1 {
-	status = "disabled";
+	status = "okay";
 	pinctrl-0 = <&eth1_rgmii_pins_b>;
 	pinctrl-1 = <&eth1_rgmii_sleep_pins_b>;
 	pinctrl-names = "default", "sleep";
