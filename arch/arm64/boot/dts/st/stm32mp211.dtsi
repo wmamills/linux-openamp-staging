@@ -1290,6 +1290,19 @@
 				status = "disabled";
 			};
 
+			dcmi: dcmi@404a0000 {
+				compatible = "st,stm32-dcmi";
+				reg = <0x404a0000 0x400>;
+				interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
+				resets = <&rcc DCMIPSSI_R>;
+				clocks = <&rcc CK_BUS_DCMIPSSI>;
+				clock-names = "mclk";
+				dmas = <&hpdma 105 0x60 0x3012>;
+				dma-names = "tx";
+				access-controllers = <&rifsc 88>;
+				status = "disabled";
+			};
+
 			crc: crc@404c0000 {
 				compatible = "st,stm32f7-crc";
 				reg = <0x404c0000 0x400>;
