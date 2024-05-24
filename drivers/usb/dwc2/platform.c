@@ -12,10 +12,12 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_data/s3c-hsotg.h>
+#include <linux/regmap.h>
 #include <linux/reset.h>
 
 #include <linux/usb/of.h>
@@ -443,6 +445,7 @@ int dwc2_check_core_version(struct dwc2_hsotg *hsotg)
  */
 static int dwc2_driver_probe(struct platform_device *dev)
 {
+	struct device_node *node = dev->dev.of_node;
 	struct dwc2_hsotg *hsotg;
 	struct resource *res;
 	int retval;
@@ -542,6 +545,30 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	retval = dwc2_init_params(hsotg);
 	if (retval)
 		goto error;
+
+	if (hsotg->params.activate_stm32_otgarcr_en) {
+		hsotg->params.stm32_regmap = syscon_regmap_lookup_by_phandle(node, "st,syscfg");
+		if (IS_ERR(hsotg->params.stm32_regmap)) {
+			retval = dev_err_probe(&dev->dev, PTR_ERR(hsotg->params.stm32_regmap),
+					       "no st,syscfg node found\n");
+			goto error;
+		}
+
+		retval = of_property_read_u32_index(node, "st,syscfg", 1,
+						    &hsotg->params.stm32_syscfg_otgarcr_reg_off);
+		if (retval) {
+			retval = dev_err_probe(&dev->dev, retval, "can't get otgarcr offset\n");
+			goto error;
+		}
+		dev_vdbg(&dev->dev, "syscfg-otgarcr-reg offset 0x%x\n",
+			 hsotg->params.stm32_syscfg_otgarcr_reg_off);
+	}
+
+	if (dev->dev.dma_range_map && hsotg->params.activate_stm32_otgarcr_en) {
+		regmap_set_bits(hsotg->params.stm32_regmap,
+				hsotg->params.stm32_syscfg_otgarcr_reg_off,
+				STM32_SYSCFG_OTGARCR_OFFSET_AREN_MASK);
+	}
 
 	if (hsotg->params.activate_stm_id_vb_detection) {
 		u32 ggpio;

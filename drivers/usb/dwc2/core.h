@@ -473,10 +473,13 @@ struct dwc2_core_params {
 	bool activate_stm_id_vb_detection;
 	bool activate_stm32_bvaloval_en;
 	bool activate_ingenic_overcurrent_detection;
+	bool activate_stm32_otgarcr_en;
 	bool ipg_isoc_en;
 	u16 max_packet_count;
 	u32 max_transfer_size;
 	u32 ahbcfg;
+	unsigned int stm32_syscfg_otgarcr_reg_off;
+	struct regmap *stm32_regmap;
 
 	/* GREFCLK parameters */
 	u32 ref_clk_per;
