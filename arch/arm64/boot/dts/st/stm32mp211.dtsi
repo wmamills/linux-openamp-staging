@@ -1620,6 +1620,37 @@
 				st,syscfg-arcr = <&syscfg 0xc0c 0x1>;
 				status = "disabled";
 			};
+
+			usbh: usb@482e0000 {
+				compatible = "st,stm32mp21-usbh";
+				st,syscfg = <&syscfg 0x2420>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0x482e0000 0x482e0000 0x20000>;
+				access-controllers = <&rifsc 63>;
+				status = "disabled";
+
+				usbh_ohci: usb@482e0000 {
+					compatible = "generic-ohci";
+					reg = <0x482e0000 0x1000>;
+					clocks = <&rcc CK_BUS_USBHOHCI>;
+					resets = <&rcc USBH_R>;
+					interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
+					phys = <&usb2_phy1>;
+					phy-names = "usb";
+				};
+
+				usbh_ehci: usb@482f0000 {
+					compatible = "generic-ehci";
+					reg = <0x482f0000 0x1000>;
+					clocks = <&rcc CK_BUS_USBHEHCI>;
+					resets = <&rcc USBH_R>;
+					interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
+					companion = <&usbh_ohci>;
+					phys = <&usb2_phy1>;
+					phy-names = "usb";
+				};
+			};
 		};
 
 		hdp: pinctrl@44090000 {
