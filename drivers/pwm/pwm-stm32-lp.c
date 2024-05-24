@@ -408,6 +408,7 @@ static SIMPLE_DEV_PM_OPS(stm32_pwm_lp_pm_ops, stm32_pwm_lp_suspend,
 
 static const struct of_device_id stm32_pwm_lp_of_match[] = {
 	{ .compatible = "st,stm32-pwm-lp", },
+	{ .compatible = "st,stm32mp21-pwm-lp", },
 	{ .compatible = "st,stm32mp25-pwm-lp", },
 	{},
 };
