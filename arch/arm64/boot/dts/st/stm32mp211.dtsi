@@ -1311,6 +1311,78 @@
 				status = "disabled";
 			};
 
+			adc_1: adc@404e0000 {
+				compatible = "st,stm32mp21-adc-core";
+				reg = <0x404e0000 0x400>;
+				interrupts = <GIC_SPI 81 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_ADC1>;
+				clock-names = "adc";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				access-controllers = <&rifsc 58>;
+				status = "disabled";
+
+				adc1: adc@0 {
+					compatible = "st,stm32mp21-adc";
+					#io-channel-cells = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+					interrupt-parent = <&adc_1>;
+					interrupts = <0>;
+					dmas = <&hpdma 58 0x40 0x12>;
+					dma-names = "rx";
+					status = "disabled";
+
+					channel@14 {
+						reg = <14>;
+						label = "vrefint";
+					};
+				};
+			};
+
+			adc_2: adc@404f0000 {
+				compatible = "st,stm32mp21-adc-core";
+				reg = <0x404f0000 0x400>;
+				interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_KER_ADC2>;
+				clock-names = "adc";
+				interrupt-controller;
+				#interrupt-cells = <1>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+				access-controllers = <&rifsc 59>;
+				status = "disabled";
+
+				adc2: adc@0 {
+					compatible = "st,stm32mp21-adc";
+					#io-channel-cells = <1>;
+					#address-cells = <1>;
+					#size-cells = <0>;
+					reg = <0x0>;
+					interrupt-parent = <&adc_2>;
+					interrupts = <0>;
+					dmas = <&hpdma 59 0x40 0x12>;
+					dma-names = "rx";
+					status = "disabled";
+
+					channel@14 {
+						reg = <14>;
+						label = "vrefint";
+					};
+					channel@15 {
+						reg = <15>;
+						label = "vddcore";
+					};
+					channel@17 {
+						reg = <17>;
+						label = "vddcpu";
+					};
+				};
+			};
+
 			iwdg1: watchdog@44010000 {
 				compatible = "st,stm32mp1-iwdg";
 				reg = <0x44010000 0x400>;
