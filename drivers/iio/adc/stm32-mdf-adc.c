@@ -984,6 +984,31 @@ static const struct iio_buffer_setup_ops stm32_mdf_buffer_setup_ops = {
 	.predisable = &stm32_mdf_adc_predisable,
 };
 
+static ssize_t stm32_mdf_adc_audio_get_channels(struct iio_dev *indio_dev, uintptr_t priv,
+						const struct iio_chan_spec *chan, char *buf)
+{
+	struct stm32_mdf_adc *adc = iio_priv(indio_dev);
+	unsigned int sub_channels_nb = 1;
+
+	if (MDF_IS_FILTER0(adc) && adc->mdf->nb_interleave)
+		sub_channels_nb = adc->mdf->nb_interleave;
+
+	return snprintf(buf, STM32_MDF_EXT_INFO_BUZ_SZ, "%u", sub_channels_nb);
+}
+
+/*
+ * IIO channel extended info used by the audio device IIO channel consumer.
+ * sub_channels_nb: provides the number of audio channels associated to the IIO channel.
+ */
+static const struct iio_chan_spec_ext_info stm32_mdf_adc_audio_ext_info[] = {
+	{
+		.name = "sub_channels_nb",
+		.shared = IIO_SHARED_BY_TYPE,
+		.read = stm32_mdf_adc_audio_get_channels,
+	},
+	{},
+};
+
 static void stm32_mdf_dma_release(struct iio_dev *indio_dev)
 {
 	struct stm32_mdf_adc *adc = iio_priv(indio_dev);
@@ -1043,6 +1068,9 @@ static int stm32_mdf_adc_chan_init_one(struct iio_dev *indio_dev, struct fwnode_
 			return ret;
 		}
 	}
+
+	if (adc->dev_data->type == STM32_MDF_AUDIO)
+		ch->ext_info = stm32_mdf_adc_audio_ext_info;
 
 	ch->type = IIO_VOLTAGE;
 	ch->indexed = 1;
