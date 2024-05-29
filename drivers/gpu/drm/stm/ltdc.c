@@ -1114,6 +1114,14 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 	ldev->fifo_warn = 0;
 	ldev->fifo_rot = 0;
 	mutex_unlock(&ldev->err_lock);
+
+	/* Flush remaining vblank event*/
+	if (crtc->state->event && !crtc->state->active) {
+		spin_lock_irq(&crtc->dev->event_lock);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		spin_unlock_irq(&crtc->dev->event_lock);
+		crtc->state->event = NULL;
+	}
 }
 
 static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
