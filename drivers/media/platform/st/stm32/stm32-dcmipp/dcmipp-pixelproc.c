@@ -100,23 +100,44 @@
 
 #define PIXELPROC_MEDIA_BUS_FMT_DEFAULT MEDIA_BUS_FMT_RGB888_1X24
 
+#define DCMIPP_PIPE(a) (1 << (a))
+#define DCMIPP_AUX_PIPE	(DCMIPP_PIPE(2))
+#define DCMIPP_ALL_PIXEL_PIPES	(DCMIPP_PIPE(1) | DCMIPP_PIPE(2))
 struct dcmipp_pixelproc_pix_map {
 	unsigned int code;
+	unsigned int pipes;
 };
 
-#define PIXMAP_MBUS(mbus)	\
+#define PIXMAP_MBUS(mbus, applicable_pipes)	\
 		{						\
 			.code = MEDIA_BUS_FMT_##mbus,		\
+			.pipes = applicable_pipes,		\
 		}
 static const struct dcmipp_pixelproc_pix_map dcmipp_pixelproc_sink_pix_map_list[] = {
+	/* RGB formats */
+	PIXMAP_MBUS(RGB565_2X8_LE, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(RGB565_2X8_BE, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(RGB565_1X16, DCMIPP_AUX_PIPE),
+	/* YUV formats */
+	PIXMAP_MBUS(YUYV8_2X8, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(YUYV8_1X16, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(YUYV8_2X8, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(UYVY8_2X8, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(UYVY8_1X16, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(UYVY8_2X8, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(YVYU8_2X8, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(YVYU8_1X16, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(VYUY8_2X8, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(VYUY8_1X16, DCMIPP_AUX_PIPE),
+	PIXMAP_MBUS(Y8_1X8, DCMIPP_AUX_PIPE),
 	/* ISP output formats */
-	PIXMAP_MBUS(RGB888_1X24),
-	PIXMAP_MBUS(YUV8_1X24),
+	PIXMAP_MBUS(RGB888_1X24, DCMIPP_ALL_PIXEL_PIPES),
+	PIXMAP_MBUS(YUV8_1X24, DCMIPP_ALL_PIXEL_PIPES),
 };
 
 static const struct dcmipp_pixelproc_pix_map dcmipp_pixelproc_src_pix_map_list[] = {
-	PIXMAP_MBUS(RGB888_1X24),
-	PIXMAP_MBUS(YUV8_1X24),
+	PIXMAP_MBUS(RGB888_1X24, DCMIPP_ALL_PIXEL_PIPES),
+	PIXMAP_MBUS(YUV8_1X24, DCMIPP_ALL_PIXEL_PIPES),
 };
 
 /* Macro for negative coefficient, 11 bits coded */
@@ -382,7 +403,7 @@ to_cconv_range(struct v4l2_mbus_framefmt *fmt)
 #define RANGE_STR(range) ((range) == RANGE_FULL ? "full" : "limited")
 
 static const struct dcmipp_pixelproc_pix_map *
-dcmipp_pixelproc_pix_map_by_code(u32 code, unsigned int pad)
+dcmipp_pixelproc_pix_map_by_code(u32 code, unsigned int pipe_id, unsigned int pad)
 {
 	const struct dcmipp_pixelproc_pix_map *l;
 	unsigned int size;
@@ -397,7 +418,7 @@ dcmipp_pixelproc_pix_map_by_code(u32 code, unsigned int pad)
 	}
 
 	for (i = 0; i < size; i++) {
-		if (l[i].code == code)
+		if (l[i].code == code && l[i].pipes & DCMIPP_PIPE(pipe_id))
 			return &l[i];
 	}
 
@@ -505,12 +526,13 @@ static void dcmipp_pixelproc_adjust_crop(struct v4l2_rect *r,
 	v4l2_rect_map_inside(r, &src_rect);
 }
 
-static void dcmipp_pixelproc_adjust_fmt(struct v4l2_mbus_framefmt *fmt, u32 pad)
+static void dcmipp_pixelproc_adjust_fmt(struct dcmipp_pixelproc_device *pixelproc,
+					struct v4l2_mbus_framefmt *fmt, u32 pad)
 {
 	const struct dcmipp_pixelproc_pix_map *vpix;
 
 	/* Only accept code in the pix map table */
-	vpix = dcmipp_pixelproc_pix_map_by_code(fmt->code, pad);
+	vpix = dcmipp_pixelproc_pix_map_by_code(fmt->code, pixelproc->pipe_id, pad);
 	if (!vpix)
 		fmt->code = PIXELPROC_MEDIA_BUS_FMT_DEFAULT;
 
@@ -556,8 +578,10 @@ dcmipp_pixelproc_enum_mbus_code(struct v4l2_subdev *sd,
 				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_mbus_code_enum *code)
 {
+	struct dcmipp_pixelproc_device *pixelproc = v4l2_get_subdevdata(sd);
 	const struct dcmipp_pixelproc_pix_map *vpix;
-	unsigned int size;
+	unsigned int index = code->index;
+	unsigned int i, size;
 
 	if (IS_SRC(code->pad)) {
 		vpix = dcmipp_pixelproc_src_pix_map_list;
@@ -567,10 +591,20 @@ dcmipp_pixelproc_enum_mbus_code(struct v4l2_subdev *sd,
 		size = ARRAY_SIZE(dcmipp_pixelproc_sink_pix_map_list);
 	}
 
-	if (code->index >= size)
+	for (i = 0; i < size; i++) {
+		if (!(vpix[i].pipes & DCMIPP_PIPE(pixelproc->pipe_id)))
+			continue;
+
+		if (index == 0)
+			break;
+
+		index--;
+	}
+
+	if (i == size)
 		return -EINVAL;
 
-	code->code = vpix[code->index].code;
+	code->code = vpix[i].code;
 
 	return 0;
 }
@@ -579,13 +613,14 @@ static int dcmipp_pixelproc_enum_frame_size(struct v4l2_subdev *sd,
 					    struct v4l2_subdev_state *state,
 					    struct v4l2_subdev_frame_size_enum *fse)
 {
+	struct dcmipp_pixelproc_device *pixelproc = v4l2_get_subdevdata(sd);
 	const struct dcmipp_pixelproc_pix_map *vpix;
 
 	if (fse->index)
 		return -EINVAL;
 
 	/* Only accept code in the pix map table */
-	vpix = dcmipp_pixelproc_pix_map_by_code(fse->code, fse->pad);
+	vpix = dcmipp_pixelproc_pix_map_by_code(fse->code, pixelproc->pipe_id, fse->pad);
 	if (!vpix)
 		return -EINVAL;
 
@@ -607,7 +642,7 @@ static int dcmipp_pixelproc_set_fmt(struct v4l2_subdev *sd,
 	if (pixelproc->streaming)
 		return -EBUSY;
 
-	dcmipp_pixelproc_adjust_fmt(&fmt->format, fmt->pad);
+	dcmipp_pixelproc_adjust_fmt(pixelproc, &fmt->format, fmt->pad);
 
 	if (IS_SINK(fmt->pad)) {
 		struct v4l2_mbus_framefmt *src_pad_fmt;
