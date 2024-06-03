@@ -675,6 +675,14 @@ static int dcmipp_pixelproc_set_fmt(struct v4l2_subdev *sd,
 	} else {
 		struct v4l2_rect *compose;
 
+		/* AUX (pipe_nb 2) cannot perform color conv */
+		if (pixelproc->pipe_id == 2) {
+			struct v4l2_mbus_framefmt *sink_pad_fmt =
+				v4l2_subdev_state_get_format(state, 0);
+
+			fmt->format = *sink_pad_fmt;
+		}
+
 		compose = v4l2_subdev_state_get_compose(state, 0);
 
 		fmt->format.width = compose->width;
