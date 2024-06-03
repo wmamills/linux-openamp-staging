@@ -53,6 +53,27 @@
 #define DCMIPP_PxFCTCR(id)	(((id) == 1) ? DCMIPP_P1FCTCR : DCMIPP_P2FCTCR)
 #define DCMIPP_PxFCTCR_CPTMODE	BIT(2)
 #define DCMIPP_PxFCTCR_CPTREQ	BIT(3)
+
+#define DCMIPP_P1PPCR	0x9c0
+#define DCMIPP_P2PPCR	0xdc0
+#define DCMIPP_PxPPCR(id) (((id) == 1) ? DCMIPP_P1PPCR :\
+			   DCMIPP_P2PPCR)
+#define DCMIPP_PxPPCR_FORMAT_SHIFT	0
+#define DCMIPP_PxPPCR_FORMAT_MASK	GENMASK(3, 0)
+#define DCMIPP_PxPPCR_FORMAT_RGB888	0x0
+#define DCMIPP_PxPPCR_FORMAT_RGB565	0x1
+#define DCMIPP_PxPPCR_FORMAT_ARGB8888	0x2
+#define DCMIPP_PxPPCR_FORMAT_RGBA8888	0x3
+#define DCMIPP_PxPPCR_FORMAT_Y8		0x4
+#define DCMIPP_PxPPCR_FORMAT_YUV444	0x5
+#define DCMIPP_PxPPCR_FORMAT_YUYV	0x6
+#define DCMIPP_P1PPCR_FORMAT_NV61	0x7
+#define DCMIPP_P1PPCR_FORMAT_NV21	0x8
+#define DCMIPP_P1PPCR_FORMAT_YV12	0x9
+#define DCMIPP_PxPPCR_FORMAT_UYVY	0xa
+
+#define DCMIPP_PxPPCR_SWAPRB		BIT(4)
+
 #define DCMIPP_P1PPM0AR1	0x9c4
 #define DCMIPP_P2PPM0AR1	0xdc4
 #define DCMIPP_PxPPM0AR1(id)	(((id) == 1) ? DCMIPP_P1PPM0AR1 :\
@@ -74,35 +95,37 @@ struct dcmipp_pixelcap_pix_map {
 	unsigned int code;
 	u32 pixelformat;
 	u32 plane_nb;
+	unsigned int ppcr_fmt;
+	unsigned int swap_uv;
 };
 
-#define PIXMAP_MBUS_PFMT(mbus, fmt, nb_plane)		\
+#define PIXMAP_MBUS_PFMT(mbus, fmt, nb_plane, pp_code, swap)		\
 	{						\
 		.code = MEDIA_BUS_FMT_##mbus,		\
 		.pixelformat = V4L2_PIX_FMT_##fmt,	\
 		.plane_nb = nb_plane,			\
+		.ppcr_fmt = pp_code,			\
+		.swap_uv = swap,			\
 	}
 
 static const struct dcmipp_pixelcap_pix_map dcmipp_pixelcap_pix_map_list[] = {
 	/* Coplanar formats are supported on main & aux pipe */
-	PIXMAP_MBUS_PFMT(RGB565_2X8_LE, RGB565, 1),
-	PIXMAP_MBUS_PFMT(YUYV8_2X8, YUYV, 1),
-	PIXMAP_MBUS_PFMT(YVYU8_2X8, YVYU, 1),
-	PIXMAP_MBUS_PFMT(UYVY8_2X8, UYVY, 1),
-	PIXMAP_MBUS_PFMT(VYUY8_2X8, VYUY, 1),
-	PIXMAP_MBUS_PFMT(Y8_1X8, GREY, 1),
-	PIXMAP_MBUS_PFMT(RGB888_1X24, RGB24, 1),
-	PIXMAP_MBUS_PFMT(BGR888_1X24, BGR24, 1),
-	PIXMAP_MBUS_PFMT(ARGB8888_1X32, ARGB32, 1),
-	PIXMAP_MBUS_PFMT(AYUV8_1X32, AYUV32, 1),
+	PIXMAP_MBUS_PFMT(RGB888_1X24, RGB565, 1, DCMIPP_PxPPCR_FORMAT_RGB565, 0),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, YUYV, 1, DCMIPP_PxPPCR_FORMAT_YUYV, 0),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, YVYU, 1, DCMIPP_PxPPCR_FORMAT_YUYV, 1),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, UYVY, 1, DCMIPP_PxPPCR_FORMAT_UYVY, 0),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, VYUY, 1, DCMIPP_PxPPCR_FORMAT_UYVY, 1),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, GREY, 1, DCMIPP_PxPPCR_FORMAT_Y8, 0),
+	PIXMAP_MBUS_PFMT(RGB888_1X24, RGB24, 1, DCMIPP_PxPPCR_FORMAT_RGB888, 1),
+	PIXMAP_MBUS_PFMT(RGB888_1X24, BGR24, 1, DCMIPP_PxPPCR_FORMAT_RGB888, 0),
 
 	/* Semiplanar & planar formats (plane_nb > 1) are only supported on main pipe */
-	PIXMAP_MBUS_PFMT(YUYV8_1_5X8, NV12, 2),   /* FIXME no mbus code for NV12 */
-	PIXMAP_MBUS_PFMT(YVYU8_1_5X8, NV21, 2),   /* FIXME no mbus code for NV21 */
-	PIXMAP_MBUS_PFMT(YUYV8_1X16, NV16, 2),    /* FIXME no mbus code for NV16 */
-	PIXMAP_MBUS_PFMT(YVYU8_1X16, NV61, 2),    /* FIXME no mbus code for NV61 */
-	PIXMAP_MBUS_PFMT(UYVY8_1_5X8, YUV420, 3), /* FIXME no mbus code for YUV420 */
-	PIXMAP_MBUS_PFMT(VYUY8_1_5X8, YVU420, 3), /* FIXME no mbus code for YVU420 */
+	PIXMAP_MBUS_PFMT(YUV8_1X24, NV12, 2, DCMIPP_P1PPCR_FORMAT_NV21, 0),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, NV21, 2, DCMIPP_P1PPCR_FORMAT_NV21, 1),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, NV16, 2, DCMIPP_P1PPCR_FORMAT_NV61, 0),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, NV61, 2, DCMIPP_P1PPCR_FORMAT_NV61, 1),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, YUV420, 3, DCMIPP_P1PPCR_FORMAT_YV12, 0),
+	PIXMAP_MBUS_PFMT(YUV8_1X24, YVU420, 3, DCMIPP_P1PPCR_FORMAT_YV12, 1),
 };
 
 static const struct dcmipp_pixelcap_pix_map *
@@ -493,7 +516,9 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 {
 	struct dcmipp_pixelcap_device *vcap = vb2_get_drv_priv(vq);
 	struct media_entity *entity = &vcap->vdev.entity;
+	const struct dcmipp_pixelcap_pix_map *vpix;
 	struct dcmipp_buf *buf, *node;
+	unsigned int ppcr = 0;
 	int ret;
 
 	vcap->sequence = 0;
@@ -517,6 +542,17 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 	ret = dcmipp_pipeline_s_stream(vcap, 1);
 	if (ret)
 		goto err_media_pipeline_stop;
+
+	/* Configure the Pixel Packer */
+	vpix = dcmipp_pixelcap_pix_map_by_pixelformat(vcap->format.pixelformat);
+	if (!vpix)
+		goto err_media_pipeline_stop;
+
+	ppcr = vpix->ppcr_fmt;
+	if (vpix->swap_uv)
+		ppcr |= DCMIPP_PxPPCR_SWAPRB;
+
+	reg_write(vcap, DCMIPP_PxPPCR(vcap->pipe_id), ppcr);
 
 	/* Enable interruptions */
 	vcap->cmier |= DCMIPP_CMIER_PxALL(vcap->pipe_id);
