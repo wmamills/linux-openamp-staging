@@ -366,7 +366,7 @@ static inline bool tmc_etr_has_non_secure_access(struct tmc_drvdata *drvdata)
 static int tmc_etr_setup_caps(struct device *parent, u32 devid, void *dev_caps)
 {
 	int rc;
-	u32 dma_mask = 0;
+	u32 dma_mask = 32;
 	struct tmc_drvdata *drvdata = dev_get_drvdata(parent);
 
 	if (!tmc_etr_has_non_secure_access(drvdata))
