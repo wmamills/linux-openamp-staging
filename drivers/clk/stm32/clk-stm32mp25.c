@@ -34,6 +34,7 @@
 /* Register: RIFSC_SEMCR */
 #define RCC_SEMCR_SEMCID_MASK	GENMASK(6, 4)
 
+#define STM32MP25_RIFRCC_C3_ID		72
 #define STM32MP25_RIFRCC_DBG_ID		73
 #define STM32MP25_RIFRCC_IS2M_ID	107
 #define STM32MP25_RIFRCC_MCO1_ID	108
@@ -251,6 +252,7 @@ enum enum_gate_cfg {
 	GATE_ADC12,
 	GATE_ADC3,
 	GATE_ADF1,
+	GATE_C3,
 	GATE_CCI,
 	GATE_CRC,
 	GATE_CRYP1,
@@ -370,7 +372,6 @@ enum enum_gate_cfg {
 	GATE_ADF1C3,
 	GATE_BKPSRAM,
 	GATE_BSEC,
-	GATE_C3,
 	GATE_DBG,
 	GATE_DDRCAPB,
 	GATE_DDRCFG,
@@ -454,6 +455,7 @@ static const struct stm32_gate_cfg stm32mp25_gates[GATE_NB] = {
 	GATE_CFG(GATE_ADC12,		RCC_ADC12CFGR,		1,	0),
 	GATE_CFG(GATE_ADC3,		RCC_ADC3CFGR,		1,	0),
 	GATE_CFG(GATE_ADF1,		RCC_ADF1CFGR,		1,	0),
+	GATE_CFG(GATE_C3,		RCC_C3CFGR,		1,	0),
 	GATE_CFG(GATE_CCI,		RCC_CCICFGR,		1,	0),
 	GATE_CFG(GATE_CRC,		RCC_CRCCFGR,		1,	0),
 	GATE_CFG(GATE_CRYP1,		RCC_CRYP1CFGR,		1,	0),
@@ -573,7 +575,6 @@ static const struct stm32_gate_cfg stm32mp25_gates[GATE_NB] = {
 	GATE_CFG(GATE_ADF1C3,		RCC_C3CFGR,		23,	0),
 	GATE_CFG(GATE_BKPSRAM,		RCC_BKPSRAMCFGR,	1,	0),
 	GATE_CFG(GATE_BSEC,		RCC_BSECCFGR,		1,	0),
-	GATE_CFG(GATE_C3,		RCC_C3CFGR,		1,	0),
 	GATE_CFG(GATE_DBG,		RCC_DBGCFGR,		8,	0),
 	GATE_CFG(GATE_DDRCAPB,		RCC_DDRCAPBCFGR,	1,	0),
 	GATE_CFG(GATE_DDRCFG,		RCC_DDRCFGR,		1,	0),
@@ -726,6 +727,12 @@ static struct clk_stm32_gate ck_icn_p_adf1 = {
 static struct clk_stm32_gate ck_ker_adf1 = {
 	.gate_id = GATE_ADF1,
 	.hw.init = CLK_HW_INIT_INDEX("ck_ker_adf1", FLEXGEN_42, &clk_stm32_gate_ops, 0),
+};
+
+/* C3 */
+static struct clk_stm32_gate ck_cpu3 = {
+	.gate_id = GATE_C3,
+	.hw.init = CLK_HW_INIT_INDEX("ck_cpu3", ICN_LS_MCU, &clk_stm32_gate_ops, 0),
 };
 
 /* DCMI */
@@ -2003,6 +2010,7 @@ static const struct clock_config stm32mp25_clock_cfg[] = {
 	STM32_GATE_CFG(CK_KER_LPTIM4, ck_ker_lptim4, SEC_RIFSC(20)),
 	STM32_GATE_CFG(CK_KER_LPTIM5, ck_ker_lptim5, SEC_RIFSC(21)),
 	STM32_GATE_CFG(CK_KER_ADF1, ck_ker_adf1, SEC_RIFSC(55)),
+	STM32_GATE_CFG(CK_CPU3, ck_cpu3, SEC_RIFRCC(C3)),
 	STM32_GATE_CFG(CK_KER_SDMMC1, ck_ker_sdmmc1, SEC_RIFSC(76)),
 	STM32_GATE_CFG(CK_KER_SDMMC2, ck_ker_sdmmc2, SEC_RIFSC(77)),
 	STM32_GATE_CFG(CK_KER_SDMMC3, ck_ker_sdmmc3, SEC_RIFSC(78)),
@@ -2151,6 +2159,7 @@ static const struct stm32_reset_cfg *stm32mp25_reset_cfg[STM32MP25_LAST_RESET] =
 	RESET_MP25(CRYP1_R,		RCC_CRYP1CFGR,		0,	0),
 	RESET_MP25(CRYP2_R,		RCC_CRYP2CFGR,		0,	0),
 	RESET_MP25(PCIE_R,		RCC_PCIECFGR,		0,	0),
+	RESET_MP25(C3_R,		RCC_C3CFGR,		0,	0),
 };
 
 static u16 stm32mp25_cpt_gate[GATE_NB];
