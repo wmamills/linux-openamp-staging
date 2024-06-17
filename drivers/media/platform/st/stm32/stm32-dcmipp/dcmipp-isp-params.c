@@ -20,6 +20,7 @@
 #include "dcmipp-common.h"
 
 #define DCMIPP_CMSR2_P1VSYNCF	BIT(18)
+#define DCMIPP_CMSR2_P2VSYNCF	BIT(26)
 
 struct dcmipp_buf {
 	struct vb2_v4l2_buffer	vb;
@@ -511,7 +512,8 @@ static irqreturn_t dcmipp_isp_params_irq_thread(int irq, void *arg)
 	struct dcmipp_buf *cur_buf = NULL;
 
 	/* We are only interested in VSYNC interrupts */
-	if (!(ved->cmsr2 & DCMIPP_CMSR2_P1VSYNCF))
+	if (!(ved->cmsr2 & DCMIPP_CMSR2_P1VSYNCF) &&
+	    !(ved->cmsr2 & DCMIPP_CMSR2_P2VSYNCF))
 		return IRQ_HANDLED;
 
 	spin_lock_irq(&vout->irqlock);
