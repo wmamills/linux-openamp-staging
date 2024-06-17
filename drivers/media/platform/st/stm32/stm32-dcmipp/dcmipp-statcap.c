@@ -22,6 +22,7 @@
 #include "dcmipp-common.h"
 
 #define DCMIPP_CMSR2_P1VSYNCF	BIT(18)
+#define DCMIPP_CMSR2_P2VSYNCF	BIT(26)
 
 #define DCMIPP_P1BPRSR			0x828
 #define DCMIPP_P1BPRSR_BADCNT_MASK	GENMASK(11, 0)
@@ -635,7 +636,8 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 		return IRQ_HANDLED;
 
 	/* We are only interested in VSYNC interrupts */
-	if (!(ved->cmsr2 & DCMIPP_CMSR2_P1VSYNCF))
+	if (!(ved->cmsr2 & DCMIPP_CMSR2_P1VSYNCF) &&
+	    !(ved->cmsr2 & DCMIPP_CMSR2_P2VSYNCF))
 		return IRQ_HANDLED;
 
 	spin_lock_irq(&vcap->irqlock);
