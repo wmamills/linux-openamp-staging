@@ -45,6 +45,10 @@
 	status = "okay";
 };
 
+&ddrperfm {
+	status = "okay";
+};
+
 &dsi {
 	#address-cells = <1>;
 	#size-cells = <0>;
