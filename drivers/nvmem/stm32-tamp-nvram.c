@@ -539,6 +539,7 @@ static int stm32_tamp_nvram_probe(struct platform_device *pdev)
 	priv->cfg.priv = priv;
 	priv->cfg.owner = THIS_MODULE;
 	priv->cfg.type = NVMEM_TYPE_BATTERY_BACKED;
+	priv->cfg.add_legacy_fixed_of_cells = true;
 	priv->cfg.size = resource_size(res);
 	priv->cfg.reg_read = stm32_tamp_nvram_read;
 	priv->cfg.reg_write = stm32_tamp_nvram_write;
