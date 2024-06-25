@@ -63,7 +63,7 @@
 		reg = <0x48280000 0x800>;
 		interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
 		resets = <&rcc GPU_R>;
-		clock-names = "axi", "core";
+		clock-names = "bus", "core";
 		clocks = <&rcc CK_BUS_GPU>, <&rcc CK_KER_GPU>;
 		power-domains = <&scmi_devpd PD_SCMI_GPU>;
 		access-controllers = <&rifsc 79>;
