@@ -804,6 +804,7 @@ static int stm32_dma3_chan_prep_hw(struct stm32_dma3_chan *chan, enum dma_transf
 				   dma_addr_t src_addr, dma_addr_t dst_addr, u32 len)
 {
 	struct stm32_dma3_ddata *ddata = to_stm32_dma3_ddata(chan);
+	struct device *client = chan->vchan.chan.slave;
 	struct dma_device dma_device = ddata->dma_dev;
 	u32 src_max_burst = STM32_DMA3_MAX_BURST_LEN, dst_max_burst = STM32_DMA3_MAX_BURST_LEN;
 	u32 sdw, ddw, sbl_max, dbl_max, tcem, init_dw, init_bl_max;
@@ -848,13 +849,14 @@ static int stm32_dma3_chan_prep_hw(struct stm32_dma3_chan *chan, enum dma_transf
 	 * add offset to fix the address: DMA will access the memory at the address given by the
 	 * client.
 	 */
-	if (WARN_ON(ddata->axi_addr_offset && chan->vchan.chan.slave->dma_range_map &&
+	if (WARN_ON(ddata->axi_addr_offset &&
+		    (client && client->dma_range_map) &&
 		    ((dir == DMA_DEV_TO_MEM && port_is_ahb(dap_max_dw)) ||
 		     (dir == DMA_MEM_TO_DEV && port_is_ahb(sap_max_dw)) ||
 		     (dir == DMA_MEM_TO_MEM && (port_is_ahb(sap_max_dw) ||
 						port_is_ahb(dap_max_dw)))))) {
 		dev_warn(chan2dev(chan), "%s: AHB port to access MEM at %pad, no DMA translation\n",
-			 dev_name(chan->vchan.chan.slave), dir == DMA_DEV_TO_MEM ? &dst_addr :
+			 dev_name(client), dir == DMA_DEV_TO_MEM ? &dst_addr :
 							   dir == DMA_MEM_TO_DEV ? &src_addr :
 							   port_is_ahb(sap_max_dw) ? &src_addr :
 							   &dst_addr);
@@ -1500,7 +1502,7 @@ static void stm32_dma3_init_chan_config_for_memcpy(struct stm32_dma3_chan *chan,
 		chan->dt_config.ch_conf |= FIELD_PREP(STM32_DMA3_DT_FIFO, chan->fifo_size);
 		chan->dt_config.tr_conf = STM32_DMA3_DT_SINC | STM32_DMA3_DT_DINC;
 		if (ddata->axi_addr_offset && ddata->ports_max_dw[1] != DW_INVALID) {
-			if (!client->dma_range_map) {
+			if (client && !client->dma_range_map) {
 				/* Use second port if no translation applies to the address */
 				if (stm32_dma3_translate_addr(ddata, 0, client, src) == src)
 					chan->dt_config.tr_conf |= STM32_DMA3_DT_SAP;
