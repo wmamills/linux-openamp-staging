@@ -118,6 +118,7 @@ static const struct dcmipp_pipeline_config stm32mp13_pipe_cfg = {
 #define	ID_AUX_CAPTURE 7
 #define	ID_ISP_STAT_CAPTURE 8
 #define	ID_ISP_PARAMS_OUTPUT 9
+#define	ID_TPG 10
 static const struct dcmipp_ent_config stm32mp25_ent_config[] = {
 	{
 		.name = "dcmipp_input",
@@ -169,9 +170,15 @@ static const struct dcmipp_ent_config stm32mp25_ent_config[] = {
 		.init = dcmipp_isp_params_ent_init,
 		.release = dcmipp_isp_params_ent_release,
 	},
+	{
+		.name = "dcmipp_tpg",
+		.init = dcmipp_tpg_ent_init,
+		.release = dcmipp_tpg_ent_release,
+	},
 };
 
 static const struct dcmipp_ent_link stm32mp25_ent_links[] = {
+	DCMIPP_ENT_LINK(ID_TPG, 0, ID_INPUT, 0, 0),
 	DCMIPP_ENT_LINK(ID_INPUT, 1, ID_DUMP_BYTEPROC, 0, 0),
 	DCMIPP_ENT_LINK(ID_DUMP_BYTEPROC, 1, ID_DUMP_CAPTURE,  0,
 			MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
@@ -340,6 +347,7 @@ static int dcmipp_graph_notify_bound(struct v4l2_async_notifier *notifier,
 		V4L2_MBUS_PARALLEL, V4L2_MBUS_BT656, V4L2_MBUS_CSI2_DPHY
 	};
 	int supported_types_nb = ARRAY_SIZE(supported_types);
+	u32 media_flags = 0;
 
 	dev_dbg(dcmipp->dev, "Subdev \"%s\" bound\n", subdev->name);
 
@@ -401,9 +409,17 @@ static int dcmipp_graph_notify_bound(struct v4l2_async_notifier *notifier,
 		sink->bus.data_shift = vep.bus.parallel.data_shift;
 	}
 	sink->bus_type = vep.bus_type;
+
+	/*
+	 * STM32MP25 has a TPG input hence link between dcmipp_input and
+	 * bridge or sensor should not be IMMUTABLE
+	 */
+	if (!of_device_is_compatible(dcmipp->dev->of_node,
+				     "st,stm32mp25-dcmipp"))
+		media_flags = MEDIA_LNK_FL_IMMUTABLE;
+
 	ret = media_create_pad_link(&subdev->entity, src_pad, sink->ent, 0,
-				    MEDIA_LNK_FL_IMMUTABLE |
-				    MEDIA_LNK_FL_ENABLED);
+				    media_flags | MEDIA_LNK_FL_ENABLED);
 	if (ret) {
 		dev_err(dcmipp->dev, "Failed to create media pad link with subdev \"%s\"\n",
 			subdev->name);

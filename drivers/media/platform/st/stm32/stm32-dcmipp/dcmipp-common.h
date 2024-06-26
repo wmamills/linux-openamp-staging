@@ -276,6 +276,9 @@ static inline int dcmipp_s_stream_helper(struct v4l2_subdev *sd, int state)
 }
 
 /* DCMIPP subdev init / release entry points */
+struct dcmipp_ent_device *dcmipp_tpg_ent_init(const char *entity_name,
+					      struct dcmipp_device *dcmipp);
+void dcmipp_tpg_ent_release(struct dcmipp_ent_device *ved);
 struct dcmipp_ent_device *dcmipp_inp_ent_init(const char *entity_name,
 					      struct dcmipp_device *dcmipp);
 void dcmipp_inp_ent_release(struct dcmipp_ent_device *ved);
