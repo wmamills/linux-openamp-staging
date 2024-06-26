@@ -2267,7 +2267,7 @@
 		};
 	};
 
-	soc@1 {
+	soc1: soc@1 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;

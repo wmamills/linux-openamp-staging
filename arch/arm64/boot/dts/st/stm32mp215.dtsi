@@ -5,10 +5,10 @@
  */
 #include "stm32mp213.dtsi"
 
-&rifsc {
+&soc1 {
 	ltdc: display-controller@48010000 {
 		compatible = "st,stm32mp21-ltdc";
-		reg = <0x48010000 0x0 0x400>;
+		reg = <0x48010000 0x400>;
 		st,syscon = <&syscfg>;
 		interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>;
