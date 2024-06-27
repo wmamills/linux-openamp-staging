@@ -172,7 +172,7 @@ static int stpmic1_probe(struct i2c_client *i2c)
 
 	ret = devm_register_sys_off_handler(ddata->dev,
 					    SYS_OFF_MODE_POWER_OFF,
-					    SYS_OFF_PRIO_DEFAULT,
+					    SYS_OFF_PRIO_LOW,
 					    stpmic1_power_off,
 					    ddata);
 	if (ret) {
