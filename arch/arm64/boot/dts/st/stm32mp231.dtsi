@@ -1862,9 +1862,23 @@
 				clocks = <&rcc CK_BUS_LTDC>, <&rcc CK_KER_LTDC>;
 				clock-names = "bus", "lcd";
 				resets = <&rcc LTDC_R>;
-				access-controllers = <&rifsc 80>;
 				power-domains = <&CLUSTER_PD>;
 				status = "disabled";
+				access-controllers = <&rifsc 80>;
+				access-controller-names = "cmn";
+
+				l0l1 {
+					access-controllers = <&rifsc 119>;
+					access-controller-names = "l0l1";
+				};
+				l2 {
+					access-controllers = <&rifsc 120>;
+					access-controller-names = "l2";
+				};
+				rot {
+					access-controllers = <&rifsc 121>;
+					access-controller-names = "rot";
+				};
 			};
 
 			csi: csi@48020000 {
