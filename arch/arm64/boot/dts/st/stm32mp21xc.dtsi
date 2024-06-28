@@ -7,7 +7,7 @@
 &rifsc {
 	cryp1: crypto@42030000 {
 		compatible = "st,stm32mp1-cryp";
-		reg = <0x42030000 0x400>;
+		reg = <0x42030000 0x0 0x400>;
 		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&rcc CK_BUS_CRYP1>;
 		resets = <&rcc CRYP1_R>;
