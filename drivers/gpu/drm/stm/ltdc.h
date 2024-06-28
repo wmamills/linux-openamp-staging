@@ -12,6 +12,9 @@
 #define _LTDC_H_
 
 #define LTDC_MAX_LAYER	4
+#define LTDC_MAX_FIREWALL	4
+
+#include <linux/bus/stm32_firewall_device.h>
 
 struct ltdc_caps {
 	u32 hw_version;		/* hardware version */
@@ -69,6 +72,7 @@ struct ltdc_device {
 	u32 crc;
 	u32 max_burst_length;
 	struct reserved_mem *rot_mem;
+	struct stm32_firewall firewall[LTDC_MAX_FIREWALL];
 };
 
 int ltdc_parse_device_tree(struct device *dev);

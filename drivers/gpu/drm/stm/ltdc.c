@@ -8,6 +8,7 @@
  *          Mickael Reulier <mickael.reulier@st.com>
  */
 
+#include <linux/bus/stm32_firewall_device.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/delay.h>
@@ -2204,8 +2205,12 @@ static int ltdc_encoder_init(struct drm_device *ddev, struct drm_bridge *bridge)
 static int ltdc_get_caps(struct drm_device *ddev)
 {
 	struct ltdc_device *ldev = ddev->dev_private;
+	struct device *dev = ddev->dev;
+	struct device_node *np;
+	struct stm32_firewall *fwl = (struct stm32_firewall *)ldev->firewall;
 	u32 bus_width_log2, lcr, gc2r, lxc1r;
 	const struct ltdc_plat_data *pdata = of_device_get_match_data(ddev->dev);
+	int ret, i;
 
 	/*
 	 * at least 1 layer must be managed & the number of layers
@@ -2214,6 +2219,58 @@ static int ltdc_get_caps(struct drm_device *ddev)
 	regmap_read(ldev->regmap, LTDC_LCR, &lcr);
 
 	ldev->caps.nb_layers = clamp((int)lcr, 1, LTDC_MAX_LAYER);
+
+	if (of_device_is_compatible(dev->of_node, "st,stm32mp21-ltdc") ||
+	    of_device_is_compatible(dev->of_node, "st,stm32mp25-ltdc")) {
+		/* get firewall access */
+		ret = stm32_firewall_get_firewall(dev->of_node, &ldev->firewall[0], 1);
+		if (ret)
+			return ret;
+
+		np = of_get_child_by_name(dev->of_node, "l0l1");
+		if (np) {
+			ret = stm32_firewall_get_firewall(np, &ldev->firewall[1], 1);
+			if (ret)
+				return ret;
+		}
+
+		np = of_get_child_by_name(dev->of_node, "l2");
+		if (np) {
+			ret = stm32_firewall_get_firewall(np, &ldev->firewall[2], 1);
+			if (ret)
+				return ret;
+		}
+
+		np = of_get_child_by_name(dev->of_node, "rot");
+		if (np) {
+			ret = stm32_firewall_get_firewall(np, &ldev->firewall[3], 1);
+			if (ret)
+				return ret;
+		}
+
+		for (i = 0; i < LTDC_MAX_FIREWALL; i++) {
+			DRM_DEBUG_DRIVER("Get firewall: id %d name %s\n",
+					 fwl[i].firewall_id, fwl[i].entry);
+			/* check id of firewall */
+			if (fwl[i].firewall_id != 0) {
+				ret = stm32_firewall_grant_access_by_id(fwl, fwl[i].firewall_id);
+				if (ret) {
+					/*
+					 * Check the security of layer 2.
+					 * Do not expose this layer to the user
+					 * (do not create a plan)
+					 * if this one is reserved for secure application.
+					 */
+					if (!strcmp("l2", fwl[i].entry)) {
+						ldev->caps.nb_layers--;
+					} else {
+						stm32_firewall_release_access(fwl);
+						return ret;
+					}
+				}
+			}
+		}
+	}
 
 	/* set data bus width */
 	regmap_read(ldev->regmap, LTDC_GC2R, &gc2r);
@@ -2294,7 +2351,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 			ldev->caps.crtc_rotation = false;
 		ldev->caps.fifo_threshold = true;
 
-		for (int i = 0; i < lcr; i++) {
+		for (int i = 0; i < ldev->caps.nb_layers; i++) {
 			/* read 1st register of layer's configuration */
 			regmap_read(ldev->regmap, LTDC_L1C1R + i * LAY_OFS, &lxc1r);
 
@@ -2305,6 +2362,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		}
 		break;
 	default:
+		DRM_ERROR("hardware identifier (0x%08x) not supported!\n", ldev->caps.hw_version);
 		return -ENODEV;
 	}
 
@@ -2444,11 +2502,8 @@ int ltdc_load(struct drm_device *ddev)
 	}
 
 	ret = ltdc_get_caps(ddev);
-	if (ret) {
-		DRM_ERROR("hardware identifier (0x%08x) not supported!\n",
-			  ldev->caps.hw_version);
+	if (ret)
 		goto err;
-	}
 
 	/* Disable all interrupts */
 	regmap_clear_bits(ldev->regmap, LTDC_IER, IER_MASK);
@@ -2534,9 +2589,13 @@ err:
 void ltdc_unload(struct drm_device *ddev)
 {
 	struct device *dev = ddev->dev;
+	struct ltdc_device *ldev = ddev->dev_private;
+	struct stm32_firewall *fwl = (struct stm32_firewall *)ldev->firewall;
 	int nb_endpoints, i;
 
 	DRM_DEBUG_DRIVER("\n");
+
+	stm32_firewall_release_access(fwl);
 
 	nb_endpoints = of_graph_get_endpoint_count(dev->of_node);
 
