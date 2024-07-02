@@ -1937,10 +1937,11 @@ static struct drm_plane *ltdc_plane_create(struct drm_device *ddev,
 		}
 
 		/*
-		 * Soc MP25 doesn't support pixel formats yuv semiplanar &
+		 * Soc MP21 & MP25 doesn't support pixel formats yuv semiplanar &
 		 * planar on layer1 only.
 		 */
-		if (!(of_device_is_compatible(dev->of_node, "st,stm32mp25-ltdc") && !index)) {
+		if (!((of_device_is_compatible(dev->of_node, "st,stm32mp21-ltdc") ||
+		    of_device_is_compatible(dev->of_node, "st,stm32mp25-ltdc")) && !index)) {
 			if (val & LXCR_C1R_YSPA) {
 				memcpy(&formats[nb_fmt], ltdc_drm_fmt_ycbcr_sp,
 				       ARRAY_SIZE(ltdc_drm_fmt_ycbcr_sp) * sizeof(*formats));
