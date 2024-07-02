@@ -8,6 +8,7 @@
  *          for STMicroelectronics.
  */
 
+#include <linux/bus/stm32_firewall_device.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -579,11 +580,29 @@ static int dcmipp_probe(struct platform_device *pdev)
 	if (!dcmipp->entity)
 		return -ENOMEM;
 
+	/* Get stm32 firewall information */
+	ret = stm32_firewall_get_firewall(pdev->dev.of_node, &dcmipp->firewall, 1);
+	if (ret)
+		return ret;
+
+	if (dcmipp->firewall.firewall_id != 0) {
+		ret = stm32_firewall_grant_access_by_id(&dcmipp->firewall,
+							dcmipp->firewall.firewall_id);
+		if (ret) {
+			dev_err(&pdev->dev, "stm32 firewall grant error:%d\n",
+				ret);
+			return ret;
+		}
+	}
+
 	/* Register the v4l2 struct */
 	ret = v4l2_device_register(&pdev->dev, &dcmipp->v4l2_dev);
 	if (ret) {
 		dev_err(&pdev->dev,
 			"v4l2 device register failed (err=%d)\n", ret);
+		if (dcmipp->firewall.firewall_id != 0)
+			stm32_firewall_release_access_by_id(&dcmipp->firewall,
+							    dcmipp->firewall.firewall_id);
 		return ret;
 	}
 
@@ -605,6 +624,9 @@ static int dcmipp_probe(struct platform_device *pdev)
 		pm_runtime_disable(dcmipp->dev);
 		media_device_cleanup(&dcmipp->mdev);
 		v4l2_device_unregister(&dcmipp->v4l2_dev);
+		if (dcmipp->firewall.firewall_id != 0)
+			stm32_firewall_release_access_by_id(&dcmipp->firewall,
+							    dcmipp->firewall.firewall_id);
 		return ret;
 	}
 
@@ -631,6 +653,9 @@ static int dcmipp_remove(struct platform_device *pdev)
 
 	v4l2_device_unregister(&dcmipp->v4l2_dev);
 
+	if (dcmipp->firewall.firewall_id != 0)
+		stm32_firewall_release_access_by_id(&dcmipp->firewall,
+						    dcmipp->firewall.firewall_id);
 	return 0;
 }
 
