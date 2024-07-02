@@ -166,6 +166,12 @@ config ARM_SCMI_TRANSPORT_VIRTIO_ATOMIC_ENABLE
 	  in atomic context too, at the price of using a number of busy-waiting
 	  primitives all over instead. If unsure say N.
 
+config SCMI_STM32MP_OSTL_V5
+	bool "Support for STM32MP legacy SCMI messages in OSTL distributions"
+	help
+	  Enable support for legacy SCMI message IDs used in STM32MP OSTL
+	  distributions, from its version v4.0 up to v5.0. If unsure, say N.
+
 endif #ARM_SCMI_PROTOCOL
 
 config ARM_SCMI_POWER_DOMAIN
