@@ -144,22 +144,10 @@
 			thermal-sensors = <&dts>;
 
 			trips {
-				cpu_alert: cpu-alert0 {
-					temperature = <95000>;
-					hysteresis = <10000>;
-					type = "passive";
-				};
 				cpu_crit: cpu-crit0 {
 					temperature = <120000>;
-					hysteresis = <0>;
+					hysteresis = <1000>;
 					type = "critical";
-				};
-			};
-
-			cooling-maps {
-				map0 {
-					trip = <&cpu_alert>;
-					cooling-device = <&cpu0 1 1>;
 				};
 			};
 		};
