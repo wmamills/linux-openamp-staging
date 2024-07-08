@@ -78,6 +78,9 @@ static const unsigned int dcmipp_isp_sink_pix_map_list[] = {
 	/* RGB565 */
 	MEDIA_BUS_FMT_RGB565_2X8_LE,
 	MEDIA_BUS_FMT_RGB565_1X16,
+	/* RGB888 */
+	MEDIA_BUS_FMT_RGB888_3X8,
+	MEDIA_BUS_FMT_RGB888_1X24,
 	/* YUV422 */
 	MEDIA_BUS_FMT_YUYV8_2X8,
 	MEDIA_BUS_FMT_YUYV8_1X16,
