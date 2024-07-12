@@ -50,7 +50,8 @@ struct scmi_clock_info {
 	union {
 		struct {
 			int num_rates;
-			u64 rates[SCMI_MAX_NUM_RATES];
+			u64 min_rate;
+			u64 max_rate;
 		} list;
 		struct {
 			u64 min_rate;

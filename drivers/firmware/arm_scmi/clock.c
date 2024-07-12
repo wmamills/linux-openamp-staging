@@ -227,144 +227,115 @@ static int scmi_clock_attributes_get(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int rate_cmp_func(const void *_r1, const void *_r2)
+static int get_rate_by_index(const struct scmi_protocol_handle *ph,
+			     u32 clk_id, size_t index, u64 *rate,
+			     size_t *rem_rates)
 {
-	const u64 *r1 = _r1, *r2 = _r2;
+	const struct scmi_msg_resp_clock_describe_rates *resp;
+	struct scmi_msg_clock_describe_rates *msg;
+	struct scmi_xfer *t;
+	int ret;
 
-	if (*r1 < *r2)
-		return -1;
-	else if (*r1 == *r2)
-		return 0;
-	else
-		return 1;
-}
+	ret = ph->xops->xfer_get_init(ph, CLOCK_DESCRIBE_RATES, sizeof(*msg), 0,
+				      &t);
+	if (ret)
+		return ret;
 
-struct scmi_clk_ipriv {
-	struct device *dev;
-	u32 clk_id;
-	struct scmi_clock_info *clk;
-};
+	msg = t->tx.buf;
+	msg->id = cpu_to_le32(clk_id);
+	msg->rate_index = cpu_to_le32(index);
 
-static void iter_clk_describe_prepare_message(void *message,
-					      const unsigned int desc_index,
-					      const void *priv)
-{
-	struct scmi_msg_clock_describe_rates *msg = message;
-	const struct scmi_clk_ipriv *p = priv;
+	ret = ph->xops->do_xfer(ph, t);
+	if (ret)
+		goto out;
 
-	msg->id = cpu_to_le32(p->clk_id);
-	/* Set the number of rates to be skipped/already read */
-	msg->rate_index = cpu_to_le32(desc_index);
-}
+	resp = t->rx.buf;
 
-static int
-iter_clk_describe_update_state(struct scmi_iterator_state *st,
-			       const void *response, void *priv)
-{
-	u32 flags;
-	struct scmi_clk_ipriv *p = priv;
-	const struct scmi_msg_resp_clock_describe_rates *r = response;
-
-	flags = le32_to_cpu(r->num_rates_flags);
-	st->num_remaining = NUM_REMAINING(flags);
-	st->num_returned = NUM_RETURNED(flags);
-	p->clk->rate_discrete = RATE_DISCRETE(flags);
-
-	/* Warn about out of spec replies ... */
-	if (!p->clk->rate_discrete &&
-	    (st->num_returned != 3 || st->num_remaining != 0)) {
-		dev_warn(p->dev,
-			 "Out-of-spec CLOCK_DESCRIBE_RATES reply for %s - returned:%d remaining:%d rx_len:%zd\n",
-			 p->clk->name, st->num_returned, st->num_remaining,
-			 st->rx_len);
-
-		/*
-		 * A known quirk: a triplet is returned but num_returned != 3
-		 * Check for a safe payload size and fix.
-		 */
-		if (st->num_returned != 3 && st->num_remaining == 0 &&
-		    st->rx_len == sizeof(*r) + sizeof(__le32) * 2 * 3) {
-			st->num_returned = 3;
-			st->num_remaining = 0;
-		} else {
-			dev_err(p->dev,
-				"Cannot fix out-of-spec reply !\n");
-			return -EPROTO;
-		}
+	if (!RATE_DISCRETE(resp->num_rates_flags)) {
+		ret = -EPROTO;
+		goto out;
 	}
 
-	return 0;
-}
+	if (rem_rates)
+		*rem_rates = NUM_RETURNED(resp->num_rates_flags) +
+			     NUM_REMAINING(resp->num_rates_flags) - 1;
+	if (rate)
+		*rate = RATE_TO_U64(resp->rate[0]);
 
-static int
-iter_clk_describe_process_response(const struct scmi_protocol_handle *ph,
-				   const void *response,
-				   struct scmi_iterator_state *st, void *priv)
-{
-	int ret = 0;
-	struct scmi_clk_ipriv *p = priv;
-	const struct scmi_msg_resp_clock_describe_rates *r = response;
-
-	if (!p->clk->rate_discrete) {
-		switch (st->desc_index + st->loop_idx) {
-		case 0:
-			p->clk->range.min_rate = RATE_TO_U64(r->rate[0]);
-			break;
-		case 1:
-			p->clk->range.max_rate = RATE_TO_U64(r->rate[1]);
-			break;
-		case 2:
-			p->clk->range.step_size = RATE_TO_U64(r->rate[2]);
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-		}
-	} else {
-		u64 *rate = &p->clk->list.rates[st->desc_index + st->loop_idx];
-
-		*rate = RATE_TO_U64(r->rate[st->loop_idx]);
-		p->clk->list.num_rates++;
-	}
+out:
+	ph->xops->xfer_put(ph, t);
 
 	return ret;
 }
 
 static int
-scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
-			      struct scmi_clock_info *clk)
+scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph,
+			      u32 clk_id, struct scmi_clock_info *clk)
 {
+	struct scmi_msg_clock_describe_rates *msg;
+	const struct scmi_msg_resp_clock_describe_rates *resp;
+	struct scmi_xfer *t;
 	int ret;
-	void *iter;
-	struct scmi_iterator_ops ops = {
-		.prepare_message = iter_clk_describe_prepare_message,
-		.update_state = iter_clk_describe_update_state,
-		.process_response = iter_clk_describe_process_response,
-	};
-	struct scmi_clk_ipriv cpriv = {
-		.clk_id = clk_id,
-		.clk = clk,
-		.dev = ph->dev,
-	};
+	unsigned int num_returned, num_remaining;
 
-	iter = ph->hops->iter_response_init(ph, &ops, SCMI_MAX_NUM_RATES,
-					    CLOCK_DESCRIBE_RATES,
-					    sizeof(struct scmi_msg_clock_describe_rates),
-					    &cpriv);
-	if (IS_ERR(iter))
-		return PTR_ERR(iter);
-
-	ret = ph->hops->iter_response_run(iter);
+	/* First message gets either the range triplet or the min rate */
+	ret = ph->xops->xfer_get_init(ph, CLOCK_DESCRIBE_RATES, sizeof(*msg), 0,
+				      &t);
 	if (ret)
 		return ret;
 
-	if (!clk->rate_discrete) {
-		dev_dbg(ph->dev, "Min %llu Max %llu Step %llu Hz\n",
-			clk->range.min_rate, clk->range.max_rate,
-			clk->range.step_size);
-	} else if (clk->list.num_rates) {
-		sort(clk->list.rates, clk->list.num_rates,
-		     sizeof(clk->list.rates[0]), rate_cmp_func, NULL);
+	msg = t->tx.buf;
+	msg->id = cpu_to_le32(clk_id);
+	msg->rate_index = 0;
+
+	ret = ph->xops->do_xfer(ph, t);
+	if (ret) {
+		ph->xops->xfer_put(ph, t);
+		return ret;
+	}
+
+	resp = t->rx.buf;
+
+	clk->rate_discrete = RATE_DISCRETE(resp->num_rates_flags);
+	num_returned = NUM_RETURNED(resp->num_rates_flags);
+	num_remaining = NUM_REMAINING(resp->num_rates_flags);
+
+	if (clk->rate_discrete) {
+		clk->list.num_rates = num_returned + num_remaining;
+		clk->list.min_rate = RATE_TO_U64(resp->rate[0]);
+		ph->xops->xfer_put(ph, t);
+
+		ret = get_rate_by_index(ph, clk_id, clk->list.num_rates - 1,
+					&clk->list.max_rate, NULL);
+		if (ret)
+			return ret;
+	} else {
+		/* Warn about out of spec replies ... */
+		if (num_returned != 3 || num_remaining != 0) {
+			dev_warn(ph->dev,
+				 "Out-of-spec CLOCK_DESCRIBE_RATES reply for %s - returned:%d remaining:%d rx_len:%zd\n",
+				 clk->name, num_returned, num_remaining,
+				 t->rx.len);
+
+			/*
+			 * A known quirk: a triplet is returned but
+			 * num_returned != 3, check for a safe payload
+			 * size and fix.
+			 */
+			if (num_returned != 3 && num_remaining == 0 &&
+			    t->rx.len != sizeof(*resp) +
+					 sizeof(__le32) * 2 * 3) {
+				dev_err(ph->dev,
+					"Cannot fix out-of-spec reply !\n");
+				ret = -EPROTO;
+			}
+		}
+		if (!ret) {
+			clk->range.min_rate = RATE_TO_U64(resp->rate[0]);
+			clk->range.max_rate = RATE_TO_U64(resp->rate[1]);
+			clk->range.step_size = RATE_TO_U64(resp->rate[2]);
+		}
+		ph->xops->xfer_put(ph, t);
 	}
 
 	return ret;
