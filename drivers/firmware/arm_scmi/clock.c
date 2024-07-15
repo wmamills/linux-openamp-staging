@@ -466,11 +466,10 @@ static int scmi_clock_rate_set(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
-static int
-scmi_clock_round_rate_get(const struct scmi_protocol_handle *ph,
-			  u32 clk_id, u64 *value)
-{
 #ifdef CONFIG_SCMI_STM32MP_OSTL_V5
+static int scmi_clock_round_rate_get_ostl(const struct scmi_protocol_handle *ph,
+					  u32 clk_id, u64 *value)
+{
 	int ret;
 	struct scmi_xfer *t;
 	struct scmi_clock_set_rate *cfg;
@@ -506,6 +505,93 @@ scmi_clock_round_rate_get(const struct scmi_protocol_handle *ph,
 	ph->xops->xfer_put(ph, t);
 
 	return ret;
+}
+#endif
+
+static int scmi_clock_round_rate(const struct scmi_protocol_handle *ph,
+				 u32 clk_id, u64 rate, u64 *out_rate)
+{
+	u64 rate_low, rate_high, rate_tmp;
+	size_t index_low, index_high, index_tmp;
+	struct clock_info *ci = ph->get_priv(ph);
+	struct scmi_clock_info *clk;
+	int ret;
+
+	if (clk_id >= ci->num_clocks)
+		return -EINVAL;
+
+	clk = ci->clk + clk_id;
+
+	/* This function is expected to be called on discrete rates list */
+	if (!clk->rate_discrete)
+		return -EINVAL;
+
+	index_low = 0;
+	rate_low = clk->list.min_rate;
+	index_high = clk->list.num_rates - 1;
+	rate_high = clk->list.max_rate;
+
+	if (rate <= rate_low) {
+		*out_rate = rate_low;
+
+		return 0;
+	}
+	if (rate >= rate_high) {
+		*out_rate = rate_high;
+
+		return 0;
+	}
+
+	while (true) {
+		if (index_low == index_high) {
+			*out_rate = rate_low;
+
+			return 0;
+		}
+
+		if (index_high == index_low + 1) {
+			if (rate - rate_low > rate_high - rate)
+				*out_rate = rate_high;
+			else
+				*out_rate = rate_low;
+
+			return 0;
+		}
+
+		index_tmp = (index_low + index_high) / 2;
+
+		ret = get_rate_by_index(ph, clk_id, index_tmp, &rate_tmp, NULL);
+		if (ret)
+			return ret;
+
+		if (rate_tmp == rate) {
+			*out_rate = rate;
+
+			return 0;
+		}
+
+		if (rate_tmp < rate) {
+			index_low = index_tmp;
+			rate_low = rate_tmp;
+		} else {
+			index_high = index_tmp;
+			rate_high = rate_tmp;
+		}
+	}
+
+	return -EPROTO;
+}
+
+static int scmi_clock_round_rate_get(const struct scmi_protocol_handle *ph,
+				     u32 clk_id, u64 *value)
+{
+	struct clock_info *ci = ph->get_priv(ph);
+
+	if (PROTOCOL_REV_MAJOR(ci->version) >= 0x3)
+		return scmi_clock_round_rate(ph, clk_id, *value, value);
+
+#ifdef CONFIG_SCMI_STM32MP_OSTL_V5
+	return scmi_clock_round_rate_get_ostl(ph, clk_id, value);
 #else
 	return -EOPNOTSUPP;
 #endif

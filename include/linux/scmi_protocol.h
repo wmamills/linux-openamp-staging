@@ -81,6 +81,12 @@ struct scmi_protocol_handle;
  * @rate_set: set the clock rate of a clock
  * @enable: enables the specified clock
  * @disable: disables the specified clock
+ * @enable_atomic: Atomic clock enable request
+ * @disable_atomic: Atomic clock disable request
+ * @get_duty_cycle: Get clock dury cycle as numerator/denominator
+ * @round_rate_get: Get the nearst rate clock can support. This handler
+ * is needed only for discrete rates clocks, pincremental clock already
+ * provide min/max/step value to compute the supported rounded rate.
  */
 struct scmi_clk_proto_ops {
 	int (*count_get)(const struct scmi_protocol_handle *ph);
