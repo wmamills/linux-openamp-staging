@@ -1420,6 +1420,7 @@
 					interrupts = <0>;
 					dmas = <&hpdma 58 0x40 0x12>;
 					dma-names = "rx";
+					st,adc-trigger-sel = <0>;
 					status = "disabled";
 
 					channel@14 {
@@ -1452,6 +1453,7 @@
 					interrupts = <0>;
 					dmas = <&hpdma 59 0x40 0x12>;
 					dma-names = "rx";
+					st,adc-trigger-sel = <1>;
 					status = "disabled";
 
 					channel@14 {
