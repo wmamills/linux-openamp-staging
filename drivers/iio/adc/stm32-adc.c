@@ -2959,6 +2959,7 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	irqreturn_t (*handler)(int irq, void *p) = NULL;
 	struct stm32_adc *adc;
 	bool timestamping = false;
+	u32 trig_id = 0;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&pdev->dev, sizeof(*adc));
@@ -3011,9 +3012,13 @@ static int stm32_adc_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	if (adc->cfg->trigs[adc->common->trig_id])
-		adc->trigs = adc->cfg->trigs[adc->common->trig_id];
+	if (device_property_present(&pdev->dev, "st,adc-trigger-sel")) {
+		ret = device_property_read_u32(dev, "st,adc-trigger-sel", &trig_id);
+		if (ret)
+			return ret;
+	}
 
+	adc->trigs = adc->cfg->trigs[trig_id];
 	if (!adc->trigs) {
 		dev_err(&pdev->dev, "Can't get trigger list\n");
 		return -EINVAL;
