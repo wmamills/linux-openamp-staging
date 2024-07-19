@@ -17,7 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 
-#include "stm32_firewall.h"
+#include <linux/bus/stm32_firewall.h>
 
 /*
  * RIFSC offset register
