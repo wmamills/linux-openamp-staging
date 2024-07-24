@@ -102,13 +102,6 @@ static int stm32_pcie_start_link(struct dw_pcie *pci)
 		return ret;
 	}
 
-	ret = dw_pcie_ep_init_complete(ep);
-	if (ret) {
-		dev_err(pci->dev, "Failed to complete initialization: %d\n", ret);
-		stm32_pcie_disable_link(pci);
-		return ret;
-	}
-
 	dw_pcie_ep_linkup(ep);
 
 	stm32_pcie->link_status = STM32_PCIE_EP_LINK_ENABLED;
@@ -249,6 +242,16 @@ static void stm32_pcie_perst_deassert(struct dw_pcie *pci)
 		return;
 	}
 
+	ret = dw_pcie_ep_init_complete(ep);
+	if (ret) {
+		dev_err(dev, "Failed to complete initialization: %d\n", ret);
+		stm32_pcie_disable_resources(stm32_pcie);
+		pm_runtime_put_sync(dev);
+		return;
+	}
+
+	dw_pcie_ep_init_notify(ep);
+
 	ret = stm32_pcie_enable_link(pci);
 	if (ret) {
 		dev_err(dev, "PCIe Cannot establish link: %d\n", ret);
@@ -256,17 +259,6 @@ static void stm32_pcie_perst_deassert(struct dw_pcie *pci)
 		pm_runtime_put_sync(dev);
 		return;
 	}
-
-	ret = dw_pcie_ep_init_complete(ep);
-	if (ret) {
-		dev_err(dev, "Failed to complete initialization: %d\n", ret);
-		stm32_pcie_disable_link(pci);
-		stm32_pcie_disable_resources(stm32_pcie);
-		pm_runtime_put_sync(dev);
-		return;
-	}
-
-	dw_pcie_ep_init_notify(ep);
 
 	stm32_pcie->link_status = STM32_PCIE_EP_LINK_ENABLED;
 }
