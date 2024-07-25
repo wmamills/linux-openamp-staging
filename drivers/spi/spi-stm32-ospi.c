@@ -282,6 +282,10 @@ static int stm32_ospi_send(struct spi_device *spi, const struct spi_mem_op *op)
 	if (op->cmd.dtr) {
 		ccr |= CCR_IDTR;
 		ccr |= CCR_DQSE;
+
+		if (FIELD_GET(DCR2_PRESC_MASK,
+			      readl_relaxed(regs_base + OSPI_DCR2)))
+			tcr |= TCR_DHQC;
 	}
 
 	if (op->addr.dtr)
@@ -566,11 +570,8 @@ static int stm32_ospi_dtr_calibration(struct stm32_ospi *ospi)
 	writel_relaxed(flash->dcr_reg, regs_base + OSPI_DCR1);
 
 	prescaler = FIELD_GET(DCR2_PRESC_MASK,
-			      readl(regs_base + OSPI_DCR2));
+			      readl_relaxed(regs_base + OSPI_DCR2));
 	bus_freq = DIV_ROUND_UP(omi->clk_rate, prescaler + 1);
-
-	if (prescaler)
-		writel_relaxed(TCR_DHQC, regs_base + OSPI_TCR);
 
 	if (bus_freq <= STM32_DLYB_FREQ_THRESHOLD) {
 		bypass_mode = true;
