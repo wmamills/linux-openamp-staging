@@ -35,6 +35,7 @@ struct stm32_pcie {
 	int pme_irq;
 	u32 max_payload;
 	bool limit_downstream_mrrs;
+	bool link_is_up;
 };
 
 static const struct of_device_id stm32_pcie_of_match[] = {
@@ -134,6 +135,8 @@ static int stm32_pcie_suspend_noirq(struct device *dev)
 {
 	struct stm32_pcie *stm32_pcie = dev_get_drvdata(dev);
 
+	stm32_pcie->link_is_up = dw_pcie_link_up(stm32_pcie->pci);
+
 	stm32_pcie_stop_link(stm32_pcie->pci);
 	clk_disable_unprepare(stm32_pcie->clk);
 
@@ -181,12 +184,14 @@ static int stm32_pcie_resume_noirq(struct device *dev)
 	if (ret)
 		goto pcie_err;
 
-	ret = stm32_pcie_start_link(stm32_pcie->pci);
-	if (ret)
-		goto pcie_err;
+	if (stm32_pcie->link_is_up) {
+		ret = stm32_pcie_start_link(stm32_pcie->pci);
+		if (ret)
+			goto pcie_err;
 
-	/* Ignore errors, the link may come up later */
-	dw_pcie_wait_for_link(stm32_pcie->pci);
+		/* Ignore errors, the link may come up later */
+		dw_pcie_wait_for_link(stm32_pcie->pci);
+	}
 
 	pinctrl_pm_select_default_state(dev);
 
