@@ -17,6 +17,7 @@ properties:
   compatible:
     enum:
       - st,stm32mp25-mdf
+      - st,stm32mp23-mdf
 
   reg:
     minItems: 1
