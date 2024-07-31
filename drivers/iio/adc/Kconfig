@@ -1128,6 +1128,7 @@ config STM32_MDF_ADC
 	select STM32_MDF_CORE
 	select IIO_BUFFER
 	select IIO_BUFFER_HW_CONSUMER
+	select IIO_BACKEND
 	help
 	  Select this option to support ADCSigma delta modulator for
 	  STMicroelectronics STM32 Multi-function digital filter.
