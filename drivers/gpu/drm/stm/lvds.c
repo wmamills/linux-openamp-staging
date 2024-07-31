@@ -39,7 +39,8 @@
 #define LVDS_CDL2CR	0x0030  /* channel distrib link 2 configuration register */
 
 #define CDL1CR_DEFAULT	0x04321 /* Default value for CDL1CR */
-#define CDL2CR_DEFAULT	0x59876 /* Default value for CDL2CR */
+#define CDL2CR_4DL_DEFAULT	0x04321 /* Default value for CDL2CR with SINGLE link */
+#define CDL2CR_8DL_DEFAULT	0x59876 /* Default value for CDL2CR with DUAL link */
 
 #define LVDS_DMLCR(bit)	(LVDS_DMLCR0 + 0x8 * (bit))
 #define LVDS_DMMCR(bit)	(LVDS_DMMCR0 + 0x8 * (bit))
@@ -840,8 +841,12 @@ static void lvds_config_mode(struct stm_lvds *lvds)
 		lvds_cdl1cr = CDL1CR_DEFAULT;
 
 	if (lvds->secondary) {
-		lvds_cr |= CR_LKMOD;
-		lvds_cdl2cr = CDL2CR_DEFAULT;
+		if (lvds->link_type == LVDS_SINGLE_LINK_SECONDARY) {
+			lvds_cdl2cr = CDL2CR_4DL_DEFAULT;
+		} else {
+			lvds_cr |= CR_LKMOD;
+			lvds_cdl2cr = CDL2CR_8DL_DEFAULT;
+		}
 	}
 
 	/* Set signal polarity */
@@ -1135,7 +1140,6 @@ static int lvds_probe(struct platform_device *pdev)
 			if (of_graph_get_remote_endpoint(remote)) {
 				lvds->link_type = LVDS_SINGLE_LINK_PRIMARY;
 				lvds->primary = &lvds_phy_16ff_primary;
-				lvds->secondary = NULL;
 			} else {
 				ret = -EINVAL;
 			}
@@ -1147,7 +1151,6 @@ static int lvds_probe(struct platform_device *pdev)
 		if (remote) {
 			if (of_graph_get_remote_endpoint(remote)) {
 				lvds->link_type = LVDS_SINGLE_LINK_SECONDARY;
-				lvds->primary = NULL;
 				lvds->secondary = &lvds_phy_16ff_secondary;
 			} else {
 				ret = (ret == -EINVAL) ? -EINVAL : 0;
