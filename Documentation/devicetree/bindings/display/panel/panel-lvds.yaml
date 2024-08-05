@@ -31,6 +31,7 @@ select:
             - mitsubishi,aa104xd12
             - mitsubishi,aa121td01
             - sgd,gktw70sdae4se
+            - edt,etml0700z9ndha
 
   required:
     - compatible
