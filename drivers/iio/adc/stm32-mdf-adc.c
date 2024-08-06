@@ -32,7 +32,11 @@
 #define STM32_MDF_DATA_RES 24
 #define STM32_MDF_HPF_BYPASS -1
 #define STM32_MDF_TIMEOUT_MS msecs_to_jiffies(100)
-#define MDF_DEFAULT_SAMPLING_FREQ 1024
+/*
+ * Choose a default sampling ratio supported for all filter orders with RSFLT active.
+ * 32 is the maximum decimation ratio for filter order 5, with RSFLT active.
+ */
+#define MDF_DEFAULT_DECIM_RATIO 32
 
 #define MDF_IS_FILTER0(adc)			(!((adc)->fl_id))
 #define MDF_IS_INTERLEAVED_FILT(adc)		((adc)->interleaved)
@@ -653,6 +657,7 @@ err:
 static int mdf_adc_set_samp_freq(struct iio_dev *indio_dev, unsigned long sample_freq, int lock)
 {
 	struct stm32_mdf_adc *adc = iio_priv(indio_dev);
+	struct device *dev = &indio_dev->dev;
 	unsigned int decim_ratio;
 	unsigned long delta, delta_ppm, sck_freq;
 	unsigned long cck_expected_freq;
@@ -666,10 +671,19 @@ static int mdf_adc_set_samp_freq(struct iio_dev *indio_dev, unsigned long sample
 
 	sck_freq = clk_get_rate(adc->sitf->sck);
 	if (!sck_freq) {
-		dev_err(&indio_dev->dev, "Unexpected serial clock frequency: 0Hz\n");
+		dev_err(dev, "Unexpected serial clock frequency: 0Hz\n");
 		ret = -EINVAL;
 		goto err;
 	}
+
+	/*
+	 * If requested sampling frequency is 0, set a default frequency.
+	 * The default frequency is computed from default decimation ratio.
+	 * This ensures that a filter configuration can be found whatever the selected filter
+	 * order. (Most constrained case is order 5)
+	 */
+	if (!sample_freq)
+		sample_freq = sck_freq / MDF_DEFAULT_DECIM_RATIO;
 
 	/*
 	 * MDF may share its parent clock with SAI, so kernel clock rate may have been changed.
@@ -696,10 +710,10 @@ static int mdf_adc_set_samp_freq(struct iio_dev *indio_dev, unsigned long sample
 	delta = abs(sck_freq - (decim_ratio * sample_freq));
 	delta_ppm = (1000000 * delta) / sck_freq;
 	if (delta_ppm > 1000)
-		dev_warn(&indio_dev->dev, "Sample rate deviation [%lu] ppm: [%lu] vs [%lu] Hz\n",
+		dev_warn(dev, "Sample rate deviation [%lu] ppm: [%lu] vs [%lu] Hz\n",
 			 delta_ppm, sck_freq / decim_ratio, sample_freq);
 	else if (delta)
-		dev_dbg(&indio_dev->dev, "Sample rate deviation [%lu] ppm: [%lu] vs [%lu] Hz\n",
+		dev_dbg(dev, "Sample rate deviation [%lu] ppm: [%lu] vs [%lu] Hz\n",
 			delta_ppm, sck_freq / decim_ratio, sample_freq);
 
 	ret = stm32_mdf_adc_set_filters_config(indio_dev, decim_ratio);
@@ -768,7 +782,8 @@ static int stm32_mdf_adc_start_conv(struct iio_dev *indio_dev)
 	 * before setting the sampling frequency.
 	 */
 	if (!adc->sample_freq) {
-		ret = mdf_adc_set_samp_freq(indio_dev, MDF_DEFAULT_SAMPLING_FREQ, 1);
+		/* Setting frequency to 0 means that the default frequency will be applied. */
+		ret = mdf_adc_set_samp_freq(indio_dev, 0, 1);
 		if (ret < 0)
 			goto stop_sitf;
 	}
