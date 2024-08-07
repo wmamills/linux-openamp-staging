@@ -70,6 +70,8 @@ struct stm32_mdf_dev_data {
  * @fl_id: filter index
  * @decim_ratio: total decimation ratio
  * @decim_cic: CIC filter decimation ratio
+ * @stu: settling time in micro seconds
+ * @nbdis: number of samples to discard
  * @bufi: dma buffer current position
  * @buf_sz: dma buffer size
  * @buffer: buffer pointer for raw conversion
@@ -104,6 +106,8 @@ struct stm32_mdf_adc {
 	unsigned int fl_id;
 	unsigned int decim_ratio;
 	unsigned int decim_cic;
+	unsigned int stu;
+	unsigned int nbdis;
 	unsigned int bufi;
 	unsigned int buf_sz;
 	unsigned int dflt_max;
@@ -524,6 +528,7 @@ static int stm32_mdf_adc_apply_filters_config(struct stm32_mdf_adc *adc, unsigne
 				adc_inter->datsrc = adc->datsrc;
 				adc_inter->cicmode = adc->cicmode;
 				adc_inter->decim_cic = adc->decim_cic;
+				adc_inter->nbdis = adc->nbdis;
 				adc_inter->hpf_cutoff = adc->hpf_cutoff;
 
 				stm32_mdf_adc_apply_filters_config(adc_inter, scale);
@@ -541,6 +546,14 @@ static int stm32_mdf_adc_apply_filters_config(struct stm32_mdf_adc *adc, unsigne
 	ret = regmap_update_bits(adc->regmap, MDF_DLYCR_REG, MDF_DLYCR_SKPDLY_MASK, adc->delay);
 	if (ret)
 		return ret;
+
+	/* Configure NBDIS */
+	if (adc->nbdis) {
+		ret = regmap_update_bits(adc->regmap, MDF_DFLTCR_REG, MDF_DFLTCR_NBDIS_MASK,
+					 MDF_DFLTCR_NBDIS(adc->nbdis));
+		if (ret)
+			return ret;
+	}
 
 	/* Configure CICR */
 	msk = MDF_SITFCR_SCKSRC_MASK | MDF_DFLTCICR_CICMOD_MASK |
@@ -765,6 +778,16 @@ static int mdf_adc_set_samp_freq(struct iio_dev *indio_dev, unsigned long sample
 	else if (delta)
 		dev_dbg(dev, "Sample rate deviation [%lu] ppm: [%lu] vs [%lu] Hz\n",
 			delta_ppm, sck_freq / decim_ratio, sample_freq);
+
+	adc->nbdis = DIV_ROUND_UP(adc->stu * sample_freq, 1000000);
+	if (adc->nbdis > MDF_DFLTCR_NBDIS_MAX) {
+		dev_warn(dev, "NBDIS [%u] too large. Force to [%lu]\n",
+			 adc->nbdis, MDF_DFLTCR_NBDIS_MAX);
+		adc->nbdis = MDF_DFLTCR_NBDIS_MAX;
+	} else {
+		dev_dbg(dev, "Settling time [%u] us. NBDIS set to [%u] samples\n",
+			adc->stu, adc->nbdis);
+	}
 
 	ret = stm32_mdf_adc_set_filters_config(indio_dev, decim_ratio);
 	if (ret < 0)
@@ -1144,12 +1167,23 @@ static int stm32_mdf_channel_parse_of(struct iio_dev *indio_dev, struct fwnode_h
 	struct stm32_mdf_adc *adc = iio_priv(indio_dev);
 	struct iio_backend *backend;
 	int ret;
+	u32 stu = 0;
 
 	ret = fwnode_property_read_u32(node, "reg", &ch->channel);
 	if (ret < 0) {
 		dev_err(&indio_dev->dev, "Failed to read channel index: [%d]\n", ret);
 		return ret;
 	}
+
+	/* settling-time-us is optional */
+	if (fwnode_property_present(node, "settling-time-us")) {
+		ret = fwnode_property_read_u32(node, "settling-time-us", &stu);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev, "Failed to read settling time: [%d]\n", ret);
+			return ret;
+		}
+	}
+	adc->stu = stu;
 
 	if (adc->dev_data->type == STM32_MDF_IIO) {
 		backend = devm_iio_backend_fwnode_get(&indio_dev->dev, NULL, node);
