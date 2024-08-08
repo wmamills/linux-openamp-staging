@@ -249,8 +249,15 @@ patternProperties:
                     minimum: 0
                     maximum: 8
 
+                io-backends:
+                  description:
+                    Used to pipe external sigma delta modulator or internal ADC backend to MDF
+                    channel.
+                  maxItems: 1
+
               required:
                 - reg
+                - io-backends
 
               additionalProperties: false
 
@@ -348,6 +355,7 @@ examples:
 
         channel@1 {
           reg = <1>;
+          io-backends = <&sd_adc1>;
         };
       };
     };
