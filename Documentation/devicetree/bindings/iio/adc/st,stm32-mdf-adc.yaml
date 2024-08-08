@@ -249,6 +249,13 @@ patternProperties:
                     minimum: 0
                     maximum: 8
 
+                settling-time-us:
+                  description:
+                    Time between enabling the channel and the first sample. This time is converted
+                    by the driver into a minimum number of output sample to discard before releasing
+                    the data. It allows to drop the samples affected by the impulse response of the
+                    filter and wait for stable data.
+
                 io-backends:
                   description:
                     Used to pipe external sigma delta modulator or internal ADC backend to MDF
@@ -355,6 +362,7 @@ examples:
 
         channel@1 {
           reg = <1>;
+          settling-time-us = <1000>;
           io-backends = <&sd_adc1>;
         };
       };
