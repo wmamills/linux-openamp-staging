@@ -2809,18 +2809,20 @@
 
 			nvram: nvram@46010100 {
 				compatible = "st,stm32mp25-tamp-nvram";
-				#address-cells = <1>;
-				#size-cells = <1>;
 				reg = <0x46010100 0x200>;
-
-				boot_mode: tamp-bkp@180 {
-					reg = <0x180 0x4>;
-				};
-				rsc_tbl_addr: tamp-bkp@184 {
-					reg = <0x184 0x4>;
-				};
-				rsc_tbl_size: tamp-bkp@188 {
-					reg = <0x188 0x4>;
+				nvmem-layout {
+					compatible = "fixed-layout";
+					#address-cells = <1>;
+					#size-cells = <1>;
+					boot_mode: tamp-bkp@180 {
+						reg = <0x180 0x4>;
+					};
+					rsc_tbl_addr: tamp-bkp@184 {
+						reg = <0x184 0x4>;
+					};
+					rsc_tbl_size: tamp-bkp@188 {
+						reg = <0x188 0x4>;
+					};
 				};
 			};
 
