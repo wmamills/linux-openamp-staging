@@ -142,7 +142,7 @@
 &csi {
 	vdd-supply =  <&scmi_vddcore>;
 	vdda18-supply = <&scmi_vdda_1v8>;
-	status = "disabled";
+	status = "okay";
 	ports {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -164,7 +164,7 @@
 };
 
 &dcmipp {
-	status = "disabled";
+	status = "okay";
 	port {
 		dcmipp_0: endpoint {
 			remote-endpoint = <&csi_source>;
@@ -222,7 +222,7 @@
 		clocks = <&clk_ext_camera>;
 		reset-gpios = <&gpiod 5 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
 		powerdown-gpios = <&gpiod 0 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
-		status = "disabled";
+		status = "okay";
 
 		port {
 			imx335_ep: endpoint {
