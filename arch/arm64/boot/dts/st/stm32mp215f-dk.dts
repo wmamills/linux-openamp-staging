@@ -438,3 +438,15 @@
 	uart-has-rtscts;
 	status = "disabled";
 };
+
+&usb2_phy2 {
+	vdd33-supply = <&scmi_vdd3v3_usb>;
+	status = "okay";
+};
+
+&usbotg_hs {
+	role-switch-default-mode = "peripheral";
+	dr_mode = "peripheral";
+	usb-role-switch;
+	status = "okay";
+};
