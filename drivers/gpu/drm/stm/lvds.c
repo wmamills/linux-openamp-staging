@@ -557,9 +557,9 @@ static int lvds_pixel_clk_enable(struct clk_hw *hw)
 	struct lvds_phy_info *phy;
 	int ret;
 
-	ret = pm_runtime_get_sync(lvds->dev);
+	ret = pm_runtime_resume_and_get(lvds->dev);
 	if (ret < 0) {
-		DRM_ERROR("Failed to set mode, cannot get sync\n");
+		DRM_ERROR("Failed to enable clocks, cannot resume pm\n");
 		return ret;
 	}
 
@@ -991,9 +991,9 @@ static void lvds_atomic_enable(struct drm_bridge *bridge,
 	struct drm_connector *connector;
 	int ret;
 
-	ret = pm_runtime_get_sync(lvds->dev);
+	ret = pm_runtime_resume_and_get(lvds->dev);
 	if (ret < 0) {
-		DRM_ERROR("Failed to set mode, cannot get sync\n");
+		DRM_ERROR("Failed to enable lvds, cannot resume pm\n");
 		return;
 	}
 
@@ -1202,7 +1202,11 @@ static int lvds_probe(struct platform_device *pdev)
 	 *  the clocks must remain activated
 	 */
 	if (device_property_read_bool(dev, "default-on")) {
-		pm_runtime_get_sync(dev);
+		ret = pm_runtime_resume_and_get(dev);
+		if (ret < 0) {
+			DRM_ERROR("Failed to probe lvds, cannot resume pm\n");
+			return ret;
+		}
 
 		if (lvds->primary) {
 			if (lvds_is_dual_link(lvds->link_type))
