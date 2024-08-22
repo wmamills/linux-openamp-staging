@@ -593,7 +593,7 @@ static int dcmipp_isp_s_stream(struct v4l2_subdev *sd, int enable)
 			return 0;
 	}
 
-	ret = v4l2_subdev_call(s_subdev, video, s_stream, enable);
+	ret = dcmipp_s_stream_helper(s_subdev, enable);
 	if (ret < 0) {
 		dev_err(isp->dev,
 			"failed to start source subdev streaming (%d)\n", ret);

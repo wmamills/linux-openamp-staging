@@ -199,7 +199,7 @@ static int dcmipp_pipeline_s_stream(struct dcmipp_statcap_device *vcap,
 		vcap->s_subdev = media_entity_to_v4l2_subdev(pad->entity);
 	}
 
-	ret = v4l2_subdev_call(vcap->s_subdev, video, s_stream, state);
+	ret = dcmipp_s_stream_helper(vcap->s_subdev, state);
 	if (ret < 0) {
 		dev_err(vcap->dev, "failed to %s streaming (%d)\n",
 			state ? "start" : "stop", ret);
