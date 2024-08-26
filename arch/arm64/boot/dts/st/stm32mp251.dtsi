@@ -192,10 +192,6 @@
 						reg = <VOLTD_SCMI_ADC>;
 						regulator-name = "vdda18adc";
 					};
-					scmi_vddgpu: regulator@8 {
-						reg = <VOLTD_SCMI_GPU>;
-						regulator-name = "vddgpu";
-					};
 				};
 			};
 		};
