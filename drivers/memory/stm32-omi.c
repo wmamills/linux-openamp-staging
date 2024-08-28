@@ -92,13 +92,15 @@ int stm32_omi_wait_cmd(struct stm32_omi *omi)
 	writel_relaxed(cr | CR_TCIE | CR_TEIE, regs_base + OSPI_CR);
 
 	if (!wait_for_completion_timeout(&omi->data_completion,
-				msecs_to_jiffies(STM32_COMP_TIMEOUT_MS))) {
+				msecs_to_jiffies(STM32_COMP_TIMEOUT_MS)))
 		err = -ETIMEDOUT;
-	} else {
-		sr = readl_relaxed(regs_base + OSPI_SR);
-		if (sr & SR_TEF)
-			err = -EIO;
-	}
+
+	sr = readl_relaxed(regs_base + OSPI_SR);
+	if (sr & SR_TCF)
+		/* avoid false timeout */
+		err = 0;
+	if (sr & SR_TEF)
+		err = -EIO;
 
 out:
 	/* clear flags */
@@ -139,7 +141,6 @@ static irqreturn_t stm32_omi_irq(int irq, void *dev_id)
 
 	if (sr & (SR_TEF | SR_TCF)) {
 		/* disable irq */
-		cr = readl_relaxed(regs_base + OSPI_CR);
 		cr &= ~CR_TCIE & ~CR_TEIE;
 		writel_relaxed(cr, regs_base + OSPI_CR);
 		complete(&omi->data_completion);
