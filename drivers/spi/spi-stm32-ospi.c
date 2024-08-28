@@ -200,8 +200,13 @@ static int stm32_ospi_wait_poll_status(struct stm32_ospi *ospi,
 	writel_relaxed(cr | CR_SMIE, regs_base + OSPI_CR);
 
 	if (!wait_for_completion_timeout(&omi->match_completion,
-					 msecs_to_jiffies(ospi->status_timeout)))
-		return -ETIMEDOUT;
+					 msecs_to_jiffies(ospi->status_timeout))) {
+		u32 sr = readl_relaxed(regs_base + OSPI_SR);
+
+		/* Avoid false timeout */
+		if (!(sr & SR_SMF))
+			return -ETIMEDOUT;
+	}
 
 	writel_relaxed(FCR_CSMF, regs_base + OSPI_FCR);
 
