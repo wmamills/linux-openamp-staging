@@ -2982,6 +2982,18 @@
 				<&intc GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;	/* EXTI_70 */
 		};
 
+		ipcc2: mailbox@46250000 {
+			compatible = "st,stm32mp1-ipcc";
+			#mbox-cells = <1>;
+			reg = <0x46250000 0x400>;
+			st,proc-id = <1>;
+			interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "rx", "tx";
+			clocks = <&scmi_clk CK_SCMI_IPCC2>;
+			status = "disabled";
+		};
+
 		fmc: memory-controller@48200000 {
 			compatible = "st,stm32mp25-fmc2-ebi";
 			reg = <0x48200000 0x400>;
