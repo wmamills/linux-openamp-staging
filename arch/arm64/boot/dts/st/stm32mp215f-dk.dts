@@ -209,6 +209,8 @@
 		phy0_eth1: ethernet-phy@0 {
 			compatible = "ethernet-phy-id0007.c131";
 			reset-gpios =  <&gpioh 11 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <1000>;
+			reset-deassert-us = <30000>;
 			reg = <0>;
 		};
 	};
