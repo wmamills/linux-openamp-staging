@@ -14,12 +14,15 @@
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/pwm.h>
 
 #define CCMR_CHANNEL_SHIFT 8
 #define CCMR_CHANNEL_MASK  0xFF
 #define MAX_BREAKINPUT 2
 #define MAX_PWM_OUTPUT 4
+
+#define STM32_SLEEP_DELAY_MS 50
 
 struct stm32_breakinput {
 	u32 index;
@@ -184,16 +187,14 @@ static int stm32_pwm_capture(struct pwm_chip *chip, struct pwm_device *pwm,
 		goto unlock;
 	}
 
-	ret = clk_enable(priv->clk);
-	if (ret) {
-		dev_err(priv->chip.dev, "failed to enable counter clock\n");
+	ret = pm_runtime_resume_and_get(chip->dev);
+	if (ret < 0)
 		goto unlock;
-	}
 
 	rate = clk_get_rate(priv->clk);
 	if (!rate) {
 		ret = -EINVAL;
-		goto clk_dis;
+		goto suspend;
 	}
 
 	/* prescaler: fit timeout window provided by upper layer */
@@ -316,8 +317,9 @@ stop:
 	regmap_write(priv->regmap, TIM_CCER, 0);
 	regmap_write(priv->regmap, pwm->hwpwm < 2 ? TIM_CCMR1 : TIM_CCMR2, 0);
 	regmap_write(priv->regmap, TIM_PSC, 0);
-clk_dis:
-	clk_disable(priv->clk);
+suspend:
+	pm_runtime_mark_last_busy(chip->dev);
+	pm_runtime_put_autosuspend(chip->dev);
 unlock:
 	mutex_unlock(&priv->lock);
 
@@ -410,8 +412,8 @@ static int stm32_pwm_enable(struct stm32_pwm *priv, int ch)
 	u32 mask;
 	int ret;
 
-	ret = clk_enable(priv->clk);
-	if (ret)
+	ret = pm_runtime_resume_and_get(priv->chip.dev);
+	if (ret < 0)
 		return ret;
 
 	/* Enable channel */
@@ -445,7 +447,8 @@ static void stm32_pwm_disable(struct stm32_pwm *priv, int ch)
 	if (!active_channels(priv))
 		regmap_clear_bits(priv->regmap, TIM_CR1, TIM_CR1_CEN);
 
-	clk_disable(priv->clk);
+	pm_runtime_mark_last_busy(priv->chip.dev);
+	pm_runtime_put_autosuspend(priv->chip.dev);
 }
 
 static int stm32_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -659,8 +662,18 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	priv->chip.npwm = stm32_pwm_detect_channels(priv, ddata, &num_enabled);
 
 	/* Initialize clock refcount to number of enabled PWM channels. */
-	for (i = 0; i < num_enabled; i++)
+	if (num_enabled) {
+		for (i = 0; i < num_enabled; i++)
+			pm_runtime_get_noresume(dev);
+		pm_runtime_set_active(dev);
 		clk_enable(priv->clk);
+	}
+
+	pm_runtime_set_autosuspend_delay(dev, STM32_SLEEP_DELAY_MS);
+	pm_runtime_use_autosuspend(dev);
+	ret = devm_pm_runtime_enable(dev);
+	if (ret)
+		return ret;
 
 	ret = devm_pwmchip_add(dev, &priv->chip);
 	if (ret < 0)
@@ -671,11 +684,12 @@ static int stm32_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused stm32_pwm_suspend(struct device *dev)
+static int stm32_pwm_suspend(struct device *dev)
 {
 	struct stm32_pwm *priv = dev_get_drvdata(dev);
 	unsigned int i;
 	u32 ccer, mask;
+	int ret;
 
 	/* Look for active channels */
 	ccer = active_channels(priv);
@@ -689,23 +703,66 @@ static int __maybe_unused stm32_pwm_suspend(struct device *dev)
 		}
 	}
 
-	return pinctrl_pm_select_sleep_state(dev);
+	ret = pinctrl_pm_select_sleep_state(dev);
+	if (ret)
+		return ret;
+
+	return pm_runtime_force_suspend(dev);
 }
 
-static int __maybe_unused stm32_pwm_resume(struct device *dev)
+static int stm32_pwm_resume(struct device *dev)
 {
 	struct stm32_pwm *priv = dev_get_drvdata(dev);
 	int ret;
 
-	ret = pinctrl_pm_select_default_state(dev);
-	if (ret)
+	ret = pm_runtime_force_resume(dev);
+	if (ret < 0)
 		return ret;
 
+	ret = pinctrl_pm_select_default_state(dev);
+	if (ret)
+		goto suspend;
+
 	/* restore breakinput registers that may have been lost in low power */
-	return stm32_pwm_apply_breakinputs(priv);
+	ret = stm32_pwm_apply_breakinputs(priv);
+	if (ret)
+		goto sleep_state;
+
+	return 0;
+
+sleep_state:
+	pinctrl_pm_select_sleep_state(dev);
+suspend:
+	pm_runtime_force_suspend(dev);
+
+	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(stm32_pwm_pm_ops, stm32_pwm_suspend, stm32_pwm_resume);
+static int stm32_pwm_runtime_suspend(struct device *dev)
+{
+	struct stm32_pwm *priv = dev_get_drvdata(dev);
+
+	clk_disable(priv->clk);
+
+	return 0;
+}
+
+static int stm32_pwm_runtime_resume(struct device *dev)
+{
+	struct stm32_pwm *priv = dev_get_drvdata(dev);
+	int ret;
+
+	ret = clk_enable(priv->clk);
+	if (ret)
+		dev_err(dev, "failed to enable clock. Error [%d]\n", ret);
+
+	return ret;
+}
+
+static const struct dev_pm_ops stm32_pwm_pm_ops = {
+	SYSTEM_SLEEP_PM_OPS(stm32_pwm_suspend, stm32_pwm_resume)
+	RUNTIME_PM_OPS(stm32_pwm_runtime_suspend, stm32_pwm_runtime_resume, NULL)
+};
 
 static const struct of_device_id stm32_pwm_of_match[] = {
 	{ .compatible = "st,stm32-pwm",	},
@@ -720,7 +777,7 @@ static struct platform_driver stm32_pwm_driver = {
 	.driver	= {
 		.name = "stm32-pwm",
 		.of_match_table = stm32_pwm_of_match,
-		.pm = &stm32_pwm_pm_ops,
+		.pm = pm_ptr(&stm32_pwm_pm_ops),
 	},
 };
 module_platform_driver(stm32_pwm_driver);
