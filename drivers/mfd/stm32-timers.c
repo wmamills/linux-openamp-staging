@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reset.h>
 
 #define STM32_TIMERS_MAX_REGISTERS	0x3fc
@@ -316,6 +317,10 @@ static int stm32_timers_probe(struct platform_device *pdev)
 		return ret;
 
 	ret = stm32_timers_irq_probe(pdev, ddata);
+	if (ret)
+		return ret;
+
+	ret = devm_pm_runtime_enable(dev);
 	if (ret)
 		return ret;
 
