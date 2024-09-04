@@ -95,10 +95,7 @@ struct ptp_clock_caps {
 	int cross_timestamping;
 	/* Whether the clock supports adjust phase */
 	int adjust_phase;
-	int max_phase_adj; /* Maximum phase adjustment in nanoseconds. */
-	int rsv[11];       /* Reserved for future use. */
-	/* Whether the clock supports precise cross timestamps with peer clock */
-	int peer_cross_timestamping;
+	int rsv[12];   /* Reserved for future use. */
 };
 
 struct ptp_extts_request {

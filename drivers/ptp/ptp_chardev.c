@@ -139,11 +139,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		caps.pps = ptp->info->pps;
 		caps.n_pins = ptp->info->n_pins;
 		caps.cross_timestamping = ptp->info->getcrosststamp != NULL;
-		caps.adjust_phase = ptp->info->adjphase != NULL &&
-				    ptp->info->getmaxphase != NULL;
-		caps.peer_cross_timestamping = (ptp->info->getphcxtstamp != NULL) && (ptp->peer);
-		if (caps.adjust_phase)
-			caps.max_phase_adj = ptp->info->getmaxphase(ptp->info);
+		caps.adjust_phase = ptp->info->adjphase != NULL;
 		if (copy_to_user((void __user *)arg, &caps, sizeof(caps)))
 			err = -EFAULT;
 		break;

@@ -310,8 +310,7 @@ int main(int argc, char *argv[])
 			       "  %d pulse per second\n"
 			       "  %d programmable pins\n"
 			       "  %d cross timestamping\n"
-			       "  %d adjust_phase\n"
-			       "  %d maximum phase adjustment (ns)\n",
+			       "  %d adjust_phase\n",
 			       caps.max_adj,
 			       caps.n_alarm,
 			       caps.n_ext_ts,
@@ -319,8 +318,7 @@ int main(int argc, char *argv[])
 			       caps.pps,
 			       caps.n_pins,
 			       caps.cross_timestamping,
-			       caps.adjust_phase,
-			       caps.max_phase_adj);
+			       caps.adjust_phase);
 		}
 	}
 
