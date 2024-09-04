@@ -50,7 +50,6 @@ required:
   - compatible
   - reg
   - st,proc-id
-  - clocks
   - interrupt-names
   - "#mbox-cells"
   - interrupts
