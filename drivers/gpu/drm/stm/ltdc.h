@@ -73,6 +73,7 @@ struct ltdc_device {
 	u32 max_burst_length;
 	struct reserved_mem *rot_mem;
 	struct stm32_firewall firewall[LTDC_MAX_FIREWALL];
+	bool plane_enabled[LTDC_MAX_LAYER];
 };
 
 int ltdc_parse_device_tree(struct device *dev);
