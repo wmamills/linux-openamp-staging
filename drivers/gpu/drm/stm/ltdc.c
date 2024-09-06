@@ -879,9 +879,9 @@ static void ltdc_crtc_atomic_enable(struct drm_crtc *crtc,
 	else
 		pinctrl_pm_select_sleep_state(ddev->dev);
 
-	ret = pm_runtime_get_sync(ddev->dev);
+	ret = pm_runtime_resume_and_get(ddev->dev);
 	if (ret) {
-		DRM_ERROR("Failed to set mode, cannot get sync\n");
+		DRM_ERROR("Failed to enable crtc, cannot resume pm\n");
 		return;
 	}
 
@@ -1473,8 +1473,8 @@ static void ltdc_plane_update(struct drm_plane *plane, struct drm_atomic_state *
 			 plane->base.id, fb->base.id, DRM_RECT_ARG(&src), DRM_RECT_ARG(&dst));
 
 	if (!pm_runtime_active(ddev->dev)) {
-		if (pm_runtime_get_sync(ddev->dev)) {
-			DRM_ERROR("Failed to set plane, cannot get sync\n");
+		if (pm_runtime_resume_and_get(ddev->dev)) {
+			DRM_ERROR("Failed to set plane, cannot resume pm\n");
 			return;
 		}
 	}
@@ -1841,8 +1841,8 @@ static void ltdc_plane_atomic_enable(struct drm_plane *plane,
 	ldev->plane_enabled[plane->index] = true;
 
 	if (!pm_runtime_active(ddev->dev)) {
-		if (pm_runtime_get_sync(ddev->dev)) {
-			DRM_ERROR("Failed to enable plane, cannot get sync\n");
+		if (pm_runtime_resume_and_get(ddev->dev)) {
+			DRM_ERROR("Failed to enable plane, cannot resume pm\n");
 			return;
 		}
 	}
@@ -2557,7 +2557,11 @@ int ltdc_load(struct drm_device *ddev)
 
 	if (def_value) {
 		/* keep runtime active after the probe */
-		pm_runtime_get_sync(ddev->dev);
+		ret = pm_runtime_resume_and_get(ddev->dev);
+		if (ret) {
+			DRM_ERROR("Failed to load driver, cannot resume pm\n");
+			return ret;
+		}
 	} else {
 		/* set to sleep state the pinctrl to stop data trasfert */
 		pinctrl_pm_select_sleep_state(ddev->dev);
