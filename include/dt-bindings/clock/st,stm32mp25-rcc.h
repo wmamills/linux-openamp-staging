@@ -365,8 +365,9 @@
 #define HSE_DIV2_CK		343
 #define CK_KER_ETR		344
 #define CK_KER_STM		345
+#define CK_CPU3			346
 
-#define STM32MP25_LAST_CLK	346
+#define STM32MP25_LAST_CLK	347
 
 #define CK_SCMI_ICN_HS_MCU	0
 #define CK_SCMI_ICN_SDMMC	1
