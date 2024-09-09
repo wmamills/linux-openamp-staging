@@ -993,7 +993,6 @@ retry_get_irq_gpio:
 				     GOODIX_GPIO_RST_NAME);
 
 	ts->gpiod_rst = gpiod;
-
 	switch (ts->irq_pin_access_method) {
 	case IRQ_PIN_ACCESS_ACPI_GPIO:
 		/*
@@ -1371,6 +1370,9 @@ reset:
 		error = goodix_reset(ts);
 		if (error)
 			return error;
+	} else {
+		/* Need to wait at least 50 ms */
+		msleep(50);
 	}
 
 	error = goodix_i2c_test(client);
