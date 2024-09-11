@@ -76,7 +76,7 @@
 	};
 
 	firmware {
-		optee {
+		optee: optee {
 			compatible = "linaro,optee-tz";
 			method = "smc";
 			interrupt-parent = <&intc>;
@@ -137,6 +137,7 @@
 		      <0x0 0x4ac20000 0x0 0x2000>,
 		      <0x0 0x4ac40000 0x0 0x2000>,
 		      <0x0 0x4ac60000 0x0 0x2000>;
+		#address-cells = <1>;
 	};
 
 	psci {
