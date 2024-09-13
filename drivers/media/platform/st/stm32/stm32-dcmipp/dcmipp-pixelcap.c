@@ -993,16 +993,25 @@ static int dcmipp_pixelcap_link_validate(struct media_link *link)
 		.pad = link->source->index,
 	};
 	int ret, i;
+	u32 width_aligned;
 
 	ret = v4l2_subdev_call(source_sd, pad, get_fmt, NULL, &source_fmt);
 	if (ret < 0)
 		return 0;
 
-	if (source_fmt.format.width != vcap->format.width ||
+	/*
+	 * Depending on the format & pixelpacker constraints, vcap width is
+	 * different from mbus width.  Compute expected vcap width based on
+	 * mbus width
+	 */
+	width_aligned = round_up(source_fmt.format.width,
+				 1 << hdw_pixel_alignment(vcap->format.pixelformat));
+
+	if (width_aligned != vcap->format.width ||
 	    source_fmt.format.height != vcap->format.height) {
 		dev_err(vcap->dev, "Wrong width or height %ux%u (%ux%u expected)\n",
 			vcap->format.width, vcap->format.height,
-			source_fmt.format.width, source_fmt.format.height);
+			width_aligned, source_fmt.format.height);
 		return -EINVAL;
 	}
 
