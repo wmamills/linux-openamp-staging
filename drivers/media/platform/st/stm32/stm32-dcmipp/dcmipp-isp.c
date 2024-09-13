@@ -92,6 +92,9 @@ static const unsigned int dcmipp_isp_sink_pix_map_list[] = {
 	MEDIA_BUS_FMT_VYUY8_1X16,
 	/* GREY */
 	MEDIA_BUS_FMT_Y8_1X8,
+	MEDIA_BUS_FMT_Y10_1X10,
+	MEDIA_BUS_FMT_Y12_1X12,
+	MEDIA_BUS_FMT_Y14_1X14,
 	/* Raw Bayer */
 	/* Raw 8 */
 	MEDIA_BUS_FMT_SBGGR8_1X8,
