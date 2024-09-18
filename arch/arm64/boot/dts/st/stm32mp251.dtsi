@@ -2988,10 +2988,11 @@
 			#mbox-cells = <1>;
 			reg = <0x46250000 0x400>;
 			st,proc-id = <1>;
-			interrupts = <GIC_SPI 175 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts-extended = <&exti2 34 0>,
+					      <&intc GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "rx", "tx";
 			clocks = <&scmi_clk CK_SCMI_IPCC2>;
+			wakeup-source;
 			status = "disabled";
 		};
 
