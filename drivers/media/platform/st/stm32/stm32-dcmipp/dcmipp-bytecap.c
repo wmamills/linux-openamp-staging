@@ -165,6 +165,9 @@ struct dcmipp_bytecap_device {
 	int it_count;
 	int underrun_count;
 	int nactive_count;
+
+	u32 vsync_frame_refresh_cnt;
+	u32 frame_skip_ratio;
 };
 
 static const struct v4l2_pix_format fmt_default = {
@@ -424,6 +427,20 @@ static int dcmipp_pipeline_s_stream(struct dcmipp_bytecap_device *vcap,
 
 	mutex_lock(&mdev->graph_mutex);
 
+	/* Get the pad connected to PAD 0 of the video capture device */
+	pad = media_pad_remote_pad_first(&entity->pads[0]);
+	if (!pad || !is_media_entity_v4l2_subdev(pad->entity)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	/* Get the postproc subdev in order to get frame skip ratio*/
+	subdev = media_entity_to_v4l2_subdev(pad->entity);
+
+	ret = dcmipp_get_frame_skip_rate(subdev, &vcap->frame_skip_ratio);
+	if (ret < 0)
+		goto out;
+
 	/* Start/stop all entities within pipeline */
 	while (1) {
 		pad = &entity->pads[0];
@@ -475,7 +492,7 @@ static int dcmipp_pipeline_s_stream(struct dcmipp_bytecap_device *vcap,
 out:
 	mutex_unlock(&mdev->graph_mutex);
 
-	return 0;
+	return ret;
 }
 
 static void dcmipp_start_capture(struct dcmipp_bytecap_device *vcap,
@@ -488,6 +505,9 @@ static void dcmipp_start_capture(struct dcmipp_bytecap_device *vcap,
 	/* Set buffer size */
 	reg_write(vcap, DCMIPP_P0DCLMTR, DCMIPP_P0DCLMTR_ENABLE |
 		  ((buf->size / 4) & DCMIPP_P0DCLMTR_LIMIT_MASK));
+
+	/* It takes 1 VSYNCs to actually start */
+	vcap->vsync_frame_refresh_cnt = 1;
 
 	/* Capture request */
 	reg_set(vcap, DCMIPP_P0FCTCR, DCMIPP_P0FCTCR_CPTREQ);
@@ -926,15 +946,20 @@ static irqreturn_t dcmipp_bytecap_irq_thread(int irq, void *arg)
 		}
 
 		/*
-		 * On VSYNC, the previously set next buffer is going to become active thanks to
-		 * the shadowing mechanism of the DCMIPP. In most of the cases, since a FRAMEEND
-		 * has already come, pointer next is NULL since active is reset during the
-		 * FRAMEEND handling. However, in case of framerate adjustment, there are more
-		 * VSYNC than FRAMEEND. Thus we recycle the active (but not used) buffer and put it
-		 * back into next.
+		 * On VSYNC, the previously set next buffer is going to become
+		 * active thanks to the shadowing mechanism of the DCMIPP. In
+		 * most of the cases, since a FRAMEEND has already come,
+		 * pointer next is NULL since active is reset during the
+		 * FRAMEEND handling. However, in case of framerate adjustment,
+		 * there are more VSYNC than FRAMEEND. To tackle with those
+		 * cases, the driver needs to count vsync in order to apply
+		 * updates only when really necessary.
 		 */
-		swap(vcap->active, vcap->next);
-		dcmipp_bytecap_set_next_frame_or_stop(vcap);
+		if (--vcap->vsync_frame_refresh_cnt == 0) {
+			vcap->vsync_frame_refresh_cnt = vcap->frame_skip_ratio;
+			swap(vcap->active, vcap->next);
+			dcmipp_bytecap_set_next_frame_or_stop(vcap);
+		}
 	}
 
 out:
