@@ -196,6 +196,9 @@ struct dcmipp_pixelcap_device {
 		u32 underrun;
 		u32 nactive;
 	} count;
+
+	u32 vsync_frame_refresh_cnt;
+	u32 frame_skip_ratio;
 };
 
 static const struct v4l2_pix_format fmt_default = {
@@ -488,6 +491,10 @@ static int dcmipp_pipeline_s_stream(struct dcmipp_pixelcap_device *vcap,
 		vcap->s_subdev = media_entity_to_v4l2_subdev(pad->entity);
 	}
 
+	ret = dcmipp_get_frame_skip_rate(vcap->s_subdev, &vcap->frame_skip_ratio);
+	if (ret < 0)
+		return ret;
+
 	ret = dcmipp_s_stream_helper(vcap->s_subdev, state);
 	if (ret < 0) {
 		dev_err(vcap->dev, "failed to %s streaming (%d)\n",
@@ -519,6 +526,9 @@ static int dcmipp_start_capture(struct dcmipp_pixelcap_device *vcap,
 
 	if (buf->paddrs[2])
 		reg_write(vcap, DCMIPP_P1PPM2AR1, buf->paddrs[2]);
+
+	/* It takes 1 VSYNCs to actually start */
+	vcap->vsync_frame_refresh_cnt = 1;
 
 	/* Capture request */
 	reg_set(vcap, DCMIPP_PxFCTCR(vcap->pipe_id), DCMIPP_PxFCTCR_CPTREQ);
@@ -941,11 +951,14 @@ static irqreturn_t dcmipp_pixelcap_irq_thread(int irq, void *arg)
 		 * the shadowing mechanism of the DCMIPP. In most of the cases, since a FRAMEEND
 		 * has already come, pointer next is NULL since active is reset during the
 		 * FRAMEEND handling. However, in case of framerate adjustment, there are more
-		 * VSYNC than FRAMEEND. Thus we recycle the active (but not used) buffer and put it
-		 * back into next.
+		 * VSYNC than FRAMEEND. To tackle with those cases, the driver needs to count
+		 * vsync in order to apply updates only when really necessary.
 		 */
-		swap(vcap->active, vcap->next);
-		dcmipp_pixelcap_set_next_frame_or_stop(vcap);
+		if (--vcap->vsync_frame_refresh_cnt == 0) {
+			vcap->vsync_frame_refresh_cnt = vcap->frame_skip_ratio;
+			swap(vcap->active, vcap->next);
+			dcmipp_pixelcap_set_next_frame_or_stop(vcap);
+		}
 	}
 
 out:
