@@ -198,6 +198,18 @@ int dcmipp_ent_sd_register(struct dcmipp_ent_device *ved,
 void dcmipp_ent_sd_unregister(struct dcmipp_ent_device *ved,
 			      struct v4l2_subdev *sd);
 
+/**
+ * dcmipp_get_frame_skip_rate - compute skip ratio
+ *
+ * @source:	v4l2_subdev device
+ * @frame_skip_rate:	pointer to return skip ratio
+ *
+ * Helper function to compute the skip ratio by comparing
+ * the sink and source pad frame_interval
+ */
+int dcmipp_get_frame_skip_rate(struct v4l2_subdev *source,
+			       u32 *frame_skip_rate);
+
 #define reg_write(device, reg, val) \
 	(__reg_write((device)->dev, (device)->regs, (reg), (val)))
 #define reg_read(device, reg) \

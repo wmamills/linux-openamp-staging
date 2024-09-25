@@ -110,3 +110,36 @@ dcmipp_ent_sd_unregister(struct dcmipp_ent_device *ved, struct v4l2_subdev *sd)
 	v4l2_device_unregister_subdev(sd);
 	dcmipp_pads_cleanup(ved->pads);
 }
+
+int dcmipp_get_frame_skip_rate(struct v4l2_subdev *source,
+			       u32 *frame_skip_rate)
+{
+	struct v4l2_subdev_frame_interval sink_fi = { .pad = 0, };
+	struct v4l2_subdev_frame_interval source_fi = { .pad = 1, };
+	u32 ratio = 1;
+	int ret;
+
+	/*
+	 * Retrieve the frame rate adjustment info from postproc subdev
+	 * if frame_interval are not available, rate will be 1
+	 */
+	ret = v4l2_subdev_call(source, video, g_frame_interval, &sink_fi);
+	if (ret < 0)
+		goto end;
+
+	ret = v4l2_subdev_call(source, video, g_frame_interval, &source_fi);
+	if (ret < 0)
+		goto end;
+
+	if (!sink_fi.interval.numerator || !sink_fi.interval.denominator ||
+	    !source_fi.interval.numerator || !source_fi.interval.denominator)
+		goto end;
+
+	ratio = (sink_fi.interval.denominator * source_fi.interval.numerator) /
+		(sink_fi.interval.numerator * source_fi.interval.denominator);
+
+end:
+	*frame_skip_rate = ratio;
+
+	return 0;
+}
