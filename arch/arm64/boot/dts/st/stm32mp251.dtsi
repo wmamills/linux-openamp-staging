@@ -3307,7 +3307,6 @@
 			compatible = "st,stm32mp2-m0";
 			reg = <0 0>;
 			clocks = <&rcc CK_CPU3>;
-			clock-names = "c3_clk";
 			resets = <&rcc C3_R>;
 			reset-names = "mcu_rst";
 			interrupt-parent = <&intc>;
