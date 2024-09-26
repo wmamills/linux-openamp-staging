@@ -685,6 +685,16 @@ static int dcmipp_pixelproc_set_fmt(struct v4l2_subdev *sd,
 				v4l2_subdev_state_get_format(state, 0);
 
 			fmt->format = *sink_pad_fmt;
+
+			/*
+			 * Output is always either YUV8_1X24 or RGB888_1X24
+			 * depending on the input
+			 */
+			if (fmt->format.code >= MEDIA_BUS_FMT_Y8_1X8 &&
+			    fmt->format.code < MEDIA_BUS_FMT_SBGGR8_1X8)
+				fmt->format.code = MEDIA_BUS_FMT_YUV8_1X24;
+			else
+				fmt->format.code = MEDIA_BUS_FMT_RGB888_1X24;
 		}
 
 		compose = v4l2_subdev_state_get_compose(state, 0);
