@@ -72,7 +72,8 @@ enum stat_capture_state {
 	PHY_BIN_2_SHA_BIN_3,	/* Shadow: BIN_3, Physical: BIN_2 */
 	PHY_BIN_3_SHA_AV_RGB,	/* Shadow: AVERAGE (RGB), Physical: BIN_3 */
 	/* Average pre-post profile */
-	PHY_AV_RGB_SHA_AV_RGB,	/* Shadow: AVERAGE (RGB), Physical: AVERAGE (RGB) */
+	PHY_AV_RGB,	/* Shadow: AVERAGE (RGB), Physical: AVERAGE (RGB) */
+	AV_READ,	/* Capturing AVERAGE / Accumulators with valid AVERAGE */
 };
 
 enum component {
@@ -755,9 +756,12 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 			avr_bins->bins[i + 6] = reg_read(vcap, DCMIPP_P1STXSR(i));
 		break;
 
-	case PHY_AV_RGB_SHA_AV_RGB:
+	case AV_READ:
 		/* State used for the AVERAGE PRE capture mode */
 		dcmipp_statcap_read_avg_stats(vcap);
+		break;
+
+	default:
 		break;
 	}
 
@@ -782,7 +786,9 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 	case V4L2_STAT_PROFILE_AVERAGE_PRE:
 	case V4L2_STAT_PROFILE_AVERAGE_POST:
 		if (vcap->capture_state == COLD_START) {
-			vcap->capture_state = PHY_AV_RGB_SHA_AV_RGB;
+			vcap->capture_state = PHY_AV_RGB;
+		} else if (vcap->capture_state == PHY_AV_RGB) {
+			vcap->capture_state = AV_READ;
 			vcap->stat_ready = true;
 		}
 		break;
