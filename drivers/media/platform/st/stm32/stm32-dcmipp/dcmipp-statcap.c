@@ -480,16 +480,26 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 			(region->width[0] << DCMIPP_P1STSZR_HSIZE_SHIFT) |
 			(region->height[0] << DCMIPP_P1STSZR_VSIZE_SHIFT) |
 			DCMIPP_P1STSZR_ENABLE);
+		vcap->capture_state = COLD_START;
 		spin_unlock_irq(&vcap->irqlock);
 		break;
 	case V4L2_CID_ISP_STAT_AVG_FILTER:
+		spin_lock_irq(&vcap->irqlock);
 		vcap->avg_filter = ctrl->val;
+		vcap->capture_state = COLD_START;
+		spin_unlock_irq(&vcap->irqlock);
 		break;
 	case V4L2_CID_ISP_STAT_BIN_COMP:
+		spin_lock_irq(&vcap->irqlock);
 		vcap->bin_comp = ctrl->val;
+		vcap->capture_state = COLD_START;
+		spin_unlock_irq(&vcap->irqlock);
 		break;
 	case V4L2_CID_ISP_STAT_PROFILE:
+		spin_lock_irq(&vcap->irqlock);
 		vcap->stat_profile = ctrl->val;
+		vcap->capture_state = COLD_START;
+		spin_unlock_irq(&vcap->irqlock);
 		break;
 	}
 
@@ -658,6 +668,7 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 	switch (vcap->capture_state) {
 	case COLD_START:
 		vcap->stat_ready = false;
+		memset(&vcap->local_buf, 0, sizeof(vcap->local_buf));
 		/*
 		 * All stats profile starts from the PRE statistics, except the
 		 * AVERAGE POST
@@ -769,8 +780,6 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 	if (vcap->stat_ready)
 		dcmipp_statcap_buffer_done(vcap);
 
-	spin_unlock_irq(&vcap->irqlock);
-
 	/* Update the capture_state & prev_capture_state */
 	switch (vcap->stat_profile) {
 	case V4L2_STAT_PROFILE_FULL:
@@ -793,6 +802,8 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 		}
 		break;
 	}
+
+	spin_unlock_irq(&vcap->irqlock);
 
 	return IRQ_HANDLED;
 }
