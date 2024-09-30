@@ -687,9 +687,15 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 				  DCMIPP_P1STXCR_ENABLE);
 
 		if (vcap->prev_capture_state == PHY_BIN_3_SHA_AV_RGB) {
+			/* The data capture refer to the previous location */
+			avr_bins = !vcap->stat_location == DCMIPP_P1STXCR_SRC_LOC_PRE ?
+					&vcap->local_buf.pre : &vcap->local_buf.post;
 			/* Accumulators contains the 4th set of BINS */
 			for (i = 0; i < 3; i++)
 				avr_bins->bins[i + 9] = reg_read(vcap, DCMIPP_P1STXSR(i));
+			/* By the time we get the 4th POST BINS, stat_location is again in PRE */
+			if (vcap->stat_location == DCMIPP_P1STXCR_SRC_LOC_PRE)
+				vcap->stat_ready = true;
 		}
 		break;
 
@@ -768,8 +774,6 @@ static irqreturn_t dcmipp_statcap_irq_thread(int irq, void *arg)
 		if (vcap->capture_state < PHY_BIN_3_SHA_AV_RGB) {
 			vcap->capture_state++;
 		} else {
-			if (vcap->stat_location == DCMIPP_P1STXCR_SRC_LOC_POST)
-				vcap->stat_ready = true;
 			vcap->stat_location = !vcap->stat_location;
 			vcap->capture_state = PHY_AV_RGB_SHA_BIN_0;
 		}
