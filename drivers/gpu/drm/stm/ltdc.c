@@ -2231,14 +2231,14 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		if (ret)
 			return ret;
 
-		np = of_get_child_by_name(dev->of_node, "l0l1");
+		np = of_get_child_by_name(dev->of_node, "l1l2");
 		if (np) {
 			ret = stm32_firewall_get_firewall(np, &ldev->firewall[1], 1);
 			if (ret)
 				return ret;
 		}
 
-		np = of_get_child_by_name(dev->of_node, "l2");
+		np = of_get_child_by_name(dev->of_node, "l3");
 		if (np) {
 			ret = stm32_firewall_get_firewall(np, &ldev->firewall[2], 1);
 			if (ret)
@@ -2265,7 +2265,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 					 * (do not create a plan)
 					 * if this one is reserved for secure application.
 					 */
-					if (!strcmp("l2", fwl[i].entry)) {
+					if (!strcmp("l3", fwl[i].entry)) {
 						ldev->caps.nb_layers--;
 					} else {
 						stm32_firewall_release_access(fwl);
