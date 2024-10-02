@@ -537,7 +537,7 @@ static const struct v4l2_ctrl_config dcmipp_statcap_ctrls[] = {
 		.min	= 0,
 		.max	= V4L2_STAT_BIN_COMP_L,
 		.step	= 1,
-		.def	= 0,
+		.def	= V4L2_STAT_BIN_COMP_L,
 		.flags	= 0,
 	}, {
 		.ops	= &dcmipp_statcap_ctrl_ops,
