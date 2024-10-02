@@ -557,7 +557,7 @@ static int dcmipp_statcap_s_ctrl(struct v4l2_ctrl *ctrl)
 		     !region->left[0] && !region->top[0])) {
 			spin_lock_irq(&vcap->irqlock);
 			vcap->stat_region.width = sel.r.width;
-			vcap->stat_region.height = sel.r.width;
+			vcap->stat_region.height = sel.r.height;
 			reg_clear(vcap, DCMIPP_P1STSZR, DCMIPP_P1STSZR_ENABLE);
 			spin_unlock_irq(&vcap->irqlock);
 			break;
