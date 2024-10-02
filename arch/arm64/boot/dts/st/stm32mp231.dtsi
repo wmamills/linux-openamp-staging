@@ -2265,7 +2265,11 @@
 				<&scmi_clk CK_SCMI_ICN_APBDBG>,
 				<&scmi_clk CK_SCMI_TIMG1>,
 				<&scmi_clk CK_SCMI_TIMG2>,
-				<&scmi_clk CK_SCMI_PLL3>;
+				<&scmi_clk CK_SCMI_PLL3>,
+				<0>,
+				<&scmi_clk CK_SCMI_HSI_KER_CK>,
+				<&scmi_clk CK_SCMI_HSE_KER_CK>,
+				<&scmi_clk CK_SCMI_MSI_KER_CK>;
 			access-controllers = <&rifsc 156>;
 		};
 
