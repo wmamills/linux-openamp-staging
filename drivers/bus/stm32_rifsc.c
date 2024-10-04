@@ -505,9 +505,12 @@ static int stm32_rifsc_probe(struct platform_device *pdev)
 	rifsc_controller->release_access = stm32_rifsc_release_access;
 
 	/* Get number of RIFSC entries*/
-	nb_risup = readl(rifsc_controller->mmio + RIFSC_RISC_HWCFGR2) & HWCFGR2_CONF1_MASK;
-	nb_rimu = readl(rifsc_controller->mmio + RIFSC_RISC_HWCFGR2) & HWCFGR2_CONF2_MASK;
-	nb_risal = readl(rifsc_controller->mmio + RIFSC_RISC_HWCFGR2) & HWCFGR2_CONF3_MASK;
+	nb_risup = FIELD_GET(HWCFGR2_CONF1_MASK,
+			     readl(rifsc_controller->mmio + RIFSC_RISC_HWCFGR2));
+	nb_rimu = FIELD_GET(HWCFGR2_CONF2_MASK,
+			    readl(rifsc_controller->mmio + RIFSC_RISC_HWCFGR2));
+	nb_risal = FIELD_GET(HWCFGR2_CONF3_MASK,
+			     readl(rifsc_controller->mmio + RIFSC_RISC_HWCFGR2));
 	rifsc_controller->max_entries = nb_risup + nb_rimu + nb_risal;
 
 	platform_set_drvdata(pdev, rifsc_controller);
