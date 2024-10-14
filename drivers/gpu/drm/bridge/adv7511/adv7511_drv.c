@@ -678,8 +678,6 @@ adv7511_detect(struct adv7511 *adv7511, struct drm_connector *connector)
 		adv7511_power_on(adv7511);
 		if (connector)
 			adv7511_get_modes(adv7511, connector);
-		if (adv7511->status == connector_status_connected)
-			status = connector_status_disconnected;
 	} else {
 		/* Renable HPD sensing */
 		if (adv7511->type == ADV7535)
