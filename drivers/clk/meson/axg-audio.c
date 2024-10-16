@@ -6,6 +6,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/of.h>
@@ -17,7 +18,6 @@
 
 #include "meson-clkc-utils.h"
 #include "axg-audio.h"
-#include "clk-regmap.h"
 #include "clk-phase.h"
 #include "sclk-div.h"
 

@@ -9,13 +9,13 @@
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  */
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/platform_device.h>
 #include <linux/reset-controller.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include "meson-aoclk.h"
 
-#include "clk-regmap.h"
 #include "clk-dualdiv.h"
 
 #include <dt-bindings/clock/g12a-aoclkc.h>

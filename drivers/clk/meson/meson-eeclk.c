@@ -5,13 +5,13 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/module.h>
 
-#include "clk-regmap.h"
 #include "meson-eeclk.h"
 
 int meson_eeclkc_probe(struct platform_device *pdev)

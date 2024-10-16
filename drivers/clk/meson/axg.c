@@ -10,12 +10,12 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/init.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 
-#include "clk-regmap.h"
 #include "clk-pll.h"
 #include "clk-mpll.h"
 #include "axg.h"

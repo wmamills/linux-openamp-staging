@@ -5,9 +5,9 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/module.h>
 
-#include "clk-regmap.h"
 #include "clk-cpu-dyndiv.h"
 
 static inline struct meson_clk_cpu_dyndiv_data *

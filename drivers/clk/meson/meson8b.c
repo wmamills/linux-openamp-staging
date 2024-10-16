@@ -9,6 +9,7 @@
 
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/init.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
@@ -17,7 +18,6 @@
 #include <linux/regmap.h>
 
 #include "meson8b.h"
-#include "clk-regmap.h"
 #include "meson-clkc-utils.h"
 #include "clk-pll.h"
 #include "clk-mpll.h"

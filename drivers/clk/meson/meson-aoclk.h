@@ -12,11 +12,11 @@
 #define __MESON_AOCLK_H__
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
 
-#include "clk-regmap.h"
 #include "meson-clkc-utils.h"
 
 struct meson_aoclk_data {

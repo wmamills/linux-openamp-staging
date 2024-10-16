@@ -8,10 +8,10 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include "a1-pll.h"
-#include "clk-regmap.h"
 #include "meson-clkc-utils.h"
 
 #include <dt-bindings/clock/amlogic,a1-pll-clkc.h>

@@ -17,9 +17,9 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/module.h>
 
-#include "clk-regmap.h"
 #include "sclk-div.h"
 
 static inline struct meson_sclk_div_data *

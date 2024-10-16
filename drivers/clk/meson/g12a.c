@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -19,7 +20,6 @@
 
 #include "clk-mpll.h"
 #include "clk-pll.h"
-#include "clk-regmap.h"
 #include "clk-cpu-dyndiv.h"
 #include "vid-pll-div.h"
 #include "meson-eeclk.h"

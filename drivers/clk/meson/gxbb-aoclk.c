@@ -3,12 +3,12 @@
  * Copyright (c) 2016 BayLibre, SAS.
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  */
+#include <linux/clk-regmap.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include "meson-aoclk.h"
 
-#include "clk-regmap.h"
 #include "clk-dualdiv.h"
 
 #include <dt-bindings/clock/gxbb-aoclkc.h>

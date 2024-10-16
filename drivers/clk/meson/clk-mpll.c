@@ -12,10 +12,10 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 
-#include "clk-regmap.h"
 #include "clk-mpll.h"
 
 #define SDM_DEN 16384

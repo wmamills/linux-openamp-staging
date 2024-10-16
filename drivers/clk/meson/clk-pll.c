@@ -27,13 +27,13 @@
  */
 
 #include <linux/clk-provider.h>
+#include <linux/clk-regmap.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/math64.h>
 #include <linux/module.h>
 
-#include "clk-regmap.h"
 #include "clk-pll.h"
 
 static inline struct meson_clk_pll_data *
