@@ -11,6 +11,7 @@
 #include <linux/ivshmem.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/completion.h>
 
 #define DRV_NAME "virtio_msg_ivshmem"
 
@@ -25,6 +26,7 @@ struct ivshm_dev {
 	void *shmem;
 	size_t shmem_size;
 	int vectors;
+	struct completion irq_done;
 };
 
 static irqreturn_t ivshm_irq_handler(int irq, void *dev_id)
@@ -32,6 +34,7 @@ static irqreturn_t ivshm_irq_handler(int irq, void *dev_id)
 	struct ivshm_dev *ivshm_dev = (struct ivshm_dev *)dev_id;
 
 	dev_info(&ivshm_dev->pdev->dev, "ivshmem IRQ fired");
+	complete(&ivshm_dev->irq_done);
 
 	return IRQ_HANDLED;
 }
@@ -45,8 +48,6 @@ static int ivshm_release(struct my_info_t *info, struct inode *inode)
 	return 0;
 }
 
-#include <linux/delay.h>
-
 // do the "uio" test with Zephyr peer
 static int uio_test(struct ivshm_dev *ivshm_dev, u32 peer_vmid)
 {
@@ -55,6 +56,7 @@ static int uio_test(struct ivshm_dev *ivshm_dev, u32 peer_vmid)
 	volatile u32 *mmr = (u32 *) ivshm_dev->regs;
 	volatile u32 *shm = (u32 *) ivshm_dev->shmem;
 	u32 val;
+	long remaining, consumed;
 
 	for (i = 0; i < 4; ++i) {
 		val = mmr[i];
@@ -82,7 +84,13 @@ static int uio_test(struct ivshm_dev *ivshm_dev, u32 peer_vmid)
 	 * the whole shmem region with value 0xb5b5b5b5.
 	 */
 	// n = read(fd, (uint8_t *)&buf, 4);
-	msleep(1000);
+	for ( remaining = msecs_to_jiffies(1000); remaining > 0;
+		remaining -= consumed) {
+		consumed = wait_for_completion_interruptible_timeout(
+			&ivshm_dev->irq_done, remaining);
+		if (consumed <= 0)
+			break;
+	}
 
 	dev_info(pdev, "SHMEM After: %32ph \n", ivshm_dev->shmem);
 
@@ -193,6 +201,7 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	pci_set_drvdata(pdev, ivshm_dev);
 	ivshm_dev->pdev = pdev;
+	init_completion(&ivshm_dev->irq_done);
 
 	// run the test
 	uio_test(ivshm_dev, 0);
@@ -219,6 +228,9 @@ static void ivshm_remove(struct pci_dev *pdev)
 
 	writel(0, &ivshm_dev->regs->int_mask);
 	pci_clear_master(pdev);
+
+	/* unblock any straglers */
+	complete_all(&ivshm_dev->irq_done);
 
 	//uio_unregister_device(&ivshm_dev->info);
 
