@@ -67,6 +67,11 @@ static int uio_test(struct ivshm_dev *ivshm_dev, u32 peer_vmid)
 	*/
 	shm[0] = mmr[2];
 
+	/* invalidate the memory pattern */
+	for (i = 1 ; i < 32; i++) {
+		shm[i] = 0;
+	}
+
 	dev_info(pdev, "SHMEM Before: %32ph \n", ivshm_dev->shmem);
 
 	/* Notify peer by writting its peer ID to the DOORBELL register */
@@ -221,6 +226,7 @@ static void ivshm_remove(struct pci_dev *pdev)
 		free_irq(pci_irq_vector(pdev, i), ivshm_dev);
 
 	pci_free_irq_vectors(pdev);
+	dev_info(&pdev->dev, "device removed\n");
 }
 
 static const struct pci_device_id ivshm_device_id_table[] = {
