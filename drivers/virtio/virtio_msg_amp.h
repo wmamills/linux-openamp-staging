@@ -22,7 +22,7 @@ struct virtio_msg_amp;
 
 struct virtio_msg_amp_ops {
 	int (*tx_notify)(struct virtio_msg_amp *amp_dev, u32 notify_idx);
-	const char *(*bus_name)(struct virtio_msg_amp *amp_dev);
+	struct device *(*get_device)(struct virtio_msg_amp *amp_dev);
 	void (*release)(struct virtio_msg_amp *amp_dev);
 };
 
@@ -44,6 +44,7 @@ struct virtio_msg_amp {
 	/* internal state, list of devices on this bus */
 	spinlock_t lock;
 	struct list_head devices;
+	struct completion irq_done;
 };
 
 /* this one is temporary as the v0 layout is not self describing */
