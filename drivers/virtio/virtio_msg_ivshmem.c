@@ -21,101 +21,80 @@ struct ivshm_dev {
 	struct virtio_msg_amp amp_dev;
 	struct pci_dev *pdev;
 	struct ivshm_regs __iomem *regs;
-	void *shmem;
-	size_t shmem_size;
 	int vectors;
-	struct completion irq_done;
+	u32 our_vmid;
+	u32 peer_vmid;
 };
 
+/**
+ *  ivshm_irq_handler: IRQ from our PCI device
+ */
 static irqreturn_t ivshm_irq_handler(int irq, void *dev_id)
 {
 	struct ivshm_dev *ivshm_dev = (struct ivshm_dev *)dev_id;
+	int err;
 
-	dev_info(&ivshm_dev->pdev->dev, "ivshmem IRQ fired");
-	complete(&ivshm_dev->irq_done);
+	/* we always use notify index 0 */
+	err = virtio_msg_amp_notify_rx(&ivshm_dev->amp_dev, 0);
+	if (err)
+		dev_err(&ivshm_dev->pdev->dev, "ivshmem IRQ error %d", err);
+	else
+		dev_info(&ivshm_dev->pdev->dev, "ivshmem IRQ fired");
 
 	return IRQ_HANDLED;
 }
 
-#if 0
-static int ivshm_release(struct virtio_msg_amp amp_dev)
-{
+/**
+ *  ivshm_tx_notify: request from AMP layer to notify our peer
+ */
+static int ivshm_tx_notify(struct virtio_msg_amp *_amp_dev, u32 notify_idx) {
 	struct ivshm_dev *ivshm_dev =
-		container_of(amp_dev, struct ivshm_dev, amp_dev);
+		container_of(_amp_dev, struct ivshm_dev, amp_dev);
 
-	writel(0, &ivshm_dev->regs->int_status);
+	if (notify_idx != 0) {
+		dev_warn(&ivshm_dev->pdev->dev, "ivshmem tx_notify_idx not 0");
+		notify_idx = 0;
+	}
+
+	/* Notify peer by writing its peer ID to the DOORBELL register */
+	writel((ivshm_dev->peer_vmid << 16) | notify_idx,
+		&ivshm_dev->regs->doorbell);
+
 	return 0;
 }
-#endif
 
-#if 0
-// do the "uio" test with Zephyr peer
-static int uio_test(struct ivshm_dev *ivshm_dev, u32 peer_vmid)
-{
-	int i;
-	const struct device *pdev = &ivshm_dev->pdev->dev;
-	volatile u32 *mmr = (u32 *) ivshm_dev->regs;
-	volatile u32 *shm = (u32 *) ivshm_dev->shmem;
-	u32 val;
-	long remaining, consumed;
+static struct device *ivshm_get_device(struct virtio_msg_amp *_amp_dev) {
+	struct ivshm_dev *ivshm_dev =
+		container_of(_amp_dev, struct ivshm_dev, amp_dev);
 
-	for (i = 0; i < 4; ++i) {
-		val = mmr[i];
-		dev_info(pdev, "mmr%d: %d %0x\n", i, val, val);
-	}
-
-	/*
-	* Save our peer ID taken from IVPOSITION register to shm[0] so
-	* the Zephyr peer knows which peer it should notify back.
-	*/
-	shm[0] = mmr[2];
-
-	/* invalidate the memory pattern */
-	for (i = 1 ; i < 32; i++) {
-		shm[i] = 0;
-	}
-
-	dev_info(pdev, "SHMEM Before: %32ph \n", ivshm_dev->shmem);
-
-	/* Notify peer by writting its peer ID to the DOORBELL register */
-	mmr[3] = peer_vmid << 16;
-
-	/*
-	 * Wait notification. read() will block until Zephyr finishes writting
-	 * the whole shmem region with value 0xb5b5b5b5.
-	 */
-	// n = read(fd, (uint8_t *)&buf, 4);
-	for ( remaining = msecs_to_jiffies(1000); remaining > 0;
-		remaining -= consumed) {
-		consumed = wait_for_completion_interruptible_timeout(
-			&ivshm_dev->irq_done, remaining);
-		if (consumed <= 0)
-			break;
-	}
-
-	dev_info(pdev, "SHMEM After: %32ph \n", ivshm_dev->shmem);
-
-	/* Check shmem region: 4 MiB */
-	for (i = 1 /* skip peer id */; i < ((4 * 1024 * 1024) / 4) ; i++) {
-		val = shm[i];
-		if ( val != 0xb5b5b5b5 ) {
-			dev_info(pdev, "Data mismatch at %d: %x\n",
-				i, val);
-			return 1;
-		}
-	}
-
-	dev_info(pdev, "Data ok. %d byte(s) checked.\n", i * 4);
-	return 0;
+	return &ivshm_dev->pdev->dev;
 }
-#endif 
+
+/**
+ *  ivshm_release: release from virtio-msg-amp layer
+ *  disable notifications but leave free to the PCI layer callback
+ */
+static void ivshm_release(struct virtio_msg_amp *_amp_dev) {
+	struct ivshm_dev *ivshm_dev =
+		container_of(_amp_dev, struct ivshm_dev, amp_dev);
+
+	/* Mask interrupts before we go */
+	writel(0, &ivshm_dev->regs->int_mask);
+	pci_clear_master(ivshm_dev->pdev);
+}
+
+static struct virtio_msg_amp_ops ivshm_amp_ops = {
+	.tx_notify = ivshm_tx_notify,
+	.get_device  = ivshm_get_device,
+	.release   = ivshm_release
+};
 
 static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ivshm_dev *ivshm_dev;
 	int err, i;
-	char *device_name;
-	char *name;
+	const char *device_name;
+	const char *name;
 	phys_addr_t addr;
 	resource_size_t	size;
 	u32 vmid;
@@ -132,8 +111,10 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto error;
 	}
 
-	device_name = devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s[%s]", DRV_NAME,
-				     dev_name(&pdev->dev));
+	device_name = dev_name(&pdev->dev);
+	dev_info(&pdev->dev, "device_name=%s\n", device_name);
+	//devm_kasprintf(&pdev->dev, GFP_KERNEL, "%s[%s]", DRV_NAME,
+	//			     dev_name(&pdev->dev));
 	if (!device_name) {
 		err = -ENOMEM;
 		goto error;
@@ -144,29 +125,33 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto error;
 	}
 
-	name = "ivshmem-mmr";
+	name = "mmr (BAR0)";
 	addr = pci_resource_start(pdev, 0);
 	size = pci_resource_len(pdev, 0);
 	dev_info(&pdev->dev, "%s at %pa, size %pa\n", name, &addr, &size);
 
-	name = "ivshmem-msix";
+	name = "msix (BAR1)";
 	addr = pci_resource_start(pdev, 1);
 	size = pci_resource_len(pdev, 1);
 	dev_info(&pdev->dev, "%s at %pa, size %pa\n", name, &addr, &size);
 
-	name = "ivshmem-shmem";
+	name = "shmem (BAR2)";
 	addr = pci_resource_start(pdev, 2);
 	size = pci_resource_len(pdev, 2);
 	dev_info(&pdev->dev, "%s at %pa, size %pa\n", name, &addr, &size);
-	ivshm_dev->shmem_size = size;
+	ivshm_dev->amp_dev.shmem_size = size;
 
 	ivshm_dev->regs  = pcim_iomap_table(pdev)[0];
-	ivshm_dev->shmem = pcim_iomap_table(pdev)[2];
+	ivshm_dev->amp_dev.shmem = pcim_iomap_table(pdev)[2];
 
 	vmid = readl(&ivshm_dev->regs->ivposition);
+	ivshm_dev->our_vmid = vmid;
 	dev_info(&pdev->dev, "VMID=%x\n", vmid);
 
-	dev_info(&pdev->dev, "SHMEM @ 0: %32ph \n", ivshm_dev->shmem);
+	/* HACK: fixme, get from AMP info published by peer */
+	ivshm_dev->peer_vmid = 0;
+
+	dev_info(&pdev->dev, "SHMEM @ 0: %32ph \n", ivshm_dev->amp_dev.shmem);
 
 	/*
 	 * Grab all vectors although we can only coalesce them into a single
@@ -189,19 +174,22 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto error_irq;
 	}
 
-	err = virtio_msg_amp_register(&ivshm_dev->amp_dev);
-	if (err)
-		goto error_irq;
+	pci_set_drvdata(pdev, ivshm_dev);
+	ivshm_dev->pdev = pdev;
 
 	pci_set_master(pdev);
 
-	pci_set_drvdata(pdev, ivshm_dev);
-	ivshm_dev->pdev = pdev;
-	init_completion(&ivshm_dev->irq_done);
+	ivshm_dev->amp_dev.ops = &ivshm_amp_ops;
+	err = virtio_msg_amp_register(&ivshm_dev->amp_dev);
+	if (err)
+		goto error_reg;
 
 	dev_info(&pdev->dev, "probe successful\n");
 
 	return 0;
+
+error_reg:
+	pci_clear_master(pdev);
 
 error_irq:
 	while (--i > 0)
@@ -222,10 +210,7 @@ static void ivshm_remove(struct pci_dev *pdev)
 	writel(0, &ivshm_dev->regs->int_mask);
 	pci_clear_master(pdev);
 
-	/* unblock any straglers */
-	complete_all(&ivshm_dev->irq_done);
-
-	//uio_unregister_device(&ivshm_dev->info);
+	virtio_msg_amp_unregister(&ivshm_dev->amp_dev);
 
 	for (i = 0; i < ivshm_dev->vectors; i++)
 		free_irq(pci_irq_vector(pdev, i), ivshm_dev);
