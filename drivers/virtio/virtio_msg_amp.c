@@ -11,6 +11,7 @@
 
 #include "virtio_msg_amp.h"
 
+#if 0
 // do the "uio" test with Zephyr peer
 static int uio_test(struct virtio_msg_amp *amp_dev)
 {
@@ -63,18 +64,51 @@ static int uio_test(struct virtio_msg_amp *amp_dev)
 	dev_info(pdev, "Data ok. %d byte(s) checked.\n", i * 4);
 	return 0;
 }
+#endif
 
 /* this one is temporary as the v0 layout is not self describing */
 int virtio_msg_amp_register_v0(struct virtio_msg_amp *amp_dev) {
 	return 0;
 }
 
+static u8 demo_msg[40] = {
+	0x00, /* type */
+	0x09, /* id: get status */
+	0x00, 0x00, /* dev_id */
+	0x00, 0x00, 0x00, 0x00  /* index */
+};
+
+static void rx_dump_all(struct virtio_msg_amp *amp_dev) {
+	char buf[64];
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+	while (spsc_recv(&amp_dev->dev2drv, buf, 64)) {
+		dev_info(pdev, "RX MSG: %16ph \n", buf);
+	}
+}
+
 /* normal API */
 int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
+	size_t page_size = 4096;
+	char* mem = amp_dev->shmem;
+	void* page0 = &mem[0 * page_size];
+	void* page1 = &mem[1 * page_size];
+
 	/* init internal state */
 	init_completion(&amp_dev->irq_done);
 
-	uio_test(amp_dev);
+	spsc_open(&amp_dev->drv2dev, "drv2dev", page0, page_size);
+	spsc_open(&amp_dev->dev2drv, "dev2drv", page1, page_size);
+
+	/* empty the rx queue */
+	rx_dump_all(amp_dev);
+
+	/* queue a message */
+	spsc_send(&amp_dev->drv2dev, demo_msg, sizeof demo_msg);
+
+	/* Notify the peer */
+	amp_dev->ops->tx_notify(amp_dev, 0);
+
 	return 0;
 }
 
@@ -84,7 +118,7 @@ void virtio_msg_amp_unregister(struct virtio_msg_amp *amp_dev) {
 }
 
 int  virtio_msg_amp_notify_rx(struct virtio_msg_amp *amp_dev, u32 notify_idx) {
-	complete(&amp_dev->irq_done);
+	rx_dump_all(amp_dev);
 	return 0;
 }
 
