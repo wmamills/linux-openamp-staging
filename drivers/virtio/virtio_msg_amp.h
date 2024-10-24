@@ -18,6 +18,8 @@
 
 #include <linux/device.h>
 
+#include "spsc_queue.h"
+
 struct virtio_msg_amp;
 
 struct virtio_msg_amp_ops {
@@ -45,6 +47,10 @@ struct virtio_msg_amp {
 	spinlock_t lock;
 	struct list_head devices;
 	struct completion irq_done;
+
+	/* messgae FIFOs */
+	struct spsc_queue drv2dev;	/* driver to device */
+	struct spsc_queue dev2drv;	/* device to driver */
 };
 
 /* this one is temporary as the v0 layout is not self describing */
