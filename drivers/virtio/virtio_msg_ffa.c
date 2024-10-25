@@ -510,6 +510,11 @@ static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 	/* Setup notifier for async (indirect) messages */
 	vmsg_ffa_indirect_notify_setup(vmfdev);
 
+	/* Set DMA OPs for the channel bus device */
+#ifdef CONFIG_VIRTIO_MSG_FFA_DMA_OPS
+	dev->dma_ops = &virtio_msg_ffa_dma_ops;
+#endif
+
 	ret = vmsg_ffa_bus_activate(vmfdev, &features, &count);
 	if (ret)
 		goto ida_free;
@@ -591,6 +596,8 @@ static struct ffa_driver virtio_msg_ffa_driver = {
 
 static int virtio_msg_ffa_init(void)
 {
+	virtio_msg_ffa_dma_init();
+
 	if (IS_REACHABLE(CONFIG_ARM_FFA_TRANSPORT))
 		return ffa_register(&virtio_msg_ffa_driver);
 	else

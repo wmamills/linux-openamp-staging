@@ -130,4 +130,14 @@ int vmsg_ffa_bus_area_share(struct device *dev, void *vaddr, size_t n_pages,
 int vmsg_ffa_bus_area_unshare(struct device *dev, dma_addr_t *dma_handle,
 			      size_t num_pages);
 #endif
+
+#ifdef CONFIG_VIRTIO_MSG_FFA_DMA_OPS
+extern const struct dma_map_ops virtio_msg_ffa_dma_ops;
+int virtio_msg_ffa_dma_init(void);
+#else
+static inline int virtio_msg_ffa_dma_init(void) {
+	return 0;
+}
+#endif
+
 #endif /* _DRIVERS_VIRTIO_VIRTIO_MSG_H */
