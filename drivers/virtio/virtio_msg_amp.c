@@ -32,6 +32,19 @@ static void rx_dump_all(struct virtio_msg_amp *amp_dev) {
 	}
 }
 
+static void tx_msg(struct virtio_msg_amp *amp_dev, void* msg_buf,
+	size_t msg_len) {
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+	dev_info(pdev, "TX MSG: %16ph \n", msg_buf);
+
+	/* queue a message */
+	spsc_send(&amp_dev->drv2dev, msg_buf, sizeof msg_len);
+
+	/* Notify the peer */
+	amp_dev->ops->tx_notify(amp_dev, 0);
+}
+
 /* normal API */
 int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	size_t page_size = 4096;
@@ -49,10 +62,7 @@ int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	rx_dump_all(amp_dev);
 
 	/* queue a message */
-	spsc_send(&amp_dev->drv2dev, demo_msg, sizeof demo_msg);
-
-	/* Notify the peer */
-	amp_dev->ops->tx_notify(amp_dev, 0);
+	tx_msg(amp_dev, demo_msg, sizeof demo_msg);
 
 	return 0;
 }
