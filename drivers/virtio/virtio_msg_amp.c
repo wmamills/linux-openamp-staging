@@ -73,8 +73,8 @@ static int __init virtio_msg_amp_init(void)
 }
 module_init(virtio_msg_amp_init);
 
-static void __exit virtio_msg_mmio_exit(void) {}
-module_exit(virtio_msg_mmio_exit);
+static void __exit virtio_msg_amp_exit(void) {}
+module_exit(virtio_msg_amp_exit);
 
 EXPORT_SYMBOL_GPL(virtio_msg_amp_register_v0);
 EXPORT_SYMBOL_GPL(virtio_msg_amp_register);
