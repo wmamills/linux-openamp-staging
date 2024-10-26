@@ -11,6 +11,115 @@
 
 #include "virtio_msg_amp.h"
 
+#define to_virtio_msg_amp_device(_vmdev) \
+	container_of(_vmdev, struct virtio_msg_amp_device, this_dev)
+
+#define MK_RESP(type, msg_id) (((u16) type) << 8 | (u16) (msg_id))
+
+static void tx_msg(struct virtio_msg_amp *amp_dev, void* msg_buf, size_t size);
+
+/* wait for completion with timeout */
+static bool wait_for_it(struct completion* p_it, u32 msec)
+{
+	long remaining, consumed;
+
+	for ( remaining = msecs_to_jiffies(msec); remaining > 0;
+		remaining -= consumed) {
+		consumed = wait_for_completion_interruptible_timeout(
+			p_it, remaining);
+		if (consumed <= 0)
+			return false;
+	}
+	return true;
+}
+
+static int virtio_msg_amp_send(struct virtio_msg_device *vmdev,
+				struct virtio_msg *request,
+				struct virtio_msg *response)
+{
+	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
+	int len = sizeof(*request);
+	u8 type;
+
+	if (response) {
+		/* init a bad response in case we fail or timeout */
+		response->type = 0;
+		response->id = 0;
+		type = request->type | VIRTIO_MSG_TYPE_RESPONSE;
+		vmadev->expected_response = MK_RESP(type, request->id);
+		reinit_completion(&vmadev->response_done);
+	}
+
+	tx_msg(amp_dev, request, len);
+
+	if (response)
+		if (wait_for_it(&vmadev->response_done, 1000)) {
+			struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+			dev_err(pdev,
+			  "Timeout waiting for responce dev_id=%x, type/id=%x\n",
+			  vmadev->dev_id, vmadev->expected_response);
+			return 2;
+		}
+
+	return 0;
+}
+
+static const char *virtio_msg_amp_bus_name(struct virtio_msg_device *vmdev)
+{
+	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+	return dev_name(pdev);
+}
+
+static void virtio_msg_amp_synchronize_cbs(struct virtio_msg_device *vmdev)
+{
+	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+
+	/* hope for the best */
+}
+
+static void virtio_msg_amp_release(struct virtio_msg_device *vmdev)
+{
+	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+}
+
+static int virtio_msg_amp_vqs_prepare(struct virtio_msg_device *vmdev)
+{
+	return 0;
+}
+
+static void virtio_msg_amp_vqs_release(struct virtio_msg_device *vmdev)
+{
+}
+
+static struct virtio_msg_ops amp_msg_device_ops = {
+	.send = virtio_msg_amp_send,
+	.bus_name = virtio_msg_amp_bus_name,
+	.synchronize_cbs = virtio_msg_amp_synchronize_cbs,
+	.release = virtio_msg_amp_release,
+	.prepare_vqs = virtio_msg_amp_vqs_prepare,
+	.release_vqs = virtio_msg_amp_vqs_release,
+};
+
+static void init_vmadev(struct virtio_msg_amp_device* vmadev,
+	struct virtio_msg_amp* amp_dev, u16 dev_id)
+{
+	struct device* parent_dev = amp_dev->ops->get_device(amp_dev);
+	vmadev->this_dev.ops = &amp_msg_device_ops;
+	vmadev->this_dev.data = NULL;
+	vmadev->this_dev.vdev.dev.parent = parent_dev;
+
+	vmadev->amp_dev = amp_dev;
+	vmadev->dev_id = dev_id;
+	vmadev->expected_response = 0;
+	vmadev->response = NULL;
+	init_completion(&vmadev->response_done);
+}
+
 /* this one is temporary as the v0 layout is not self describing */
 int virtio_msg_amp_register_v0(struct virtio_msg_amp *amp_dev) {
 	return 0;
@@ -52,9 +161,10 @@ int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	void* page0 = &mem[0 * page_size];
 	void* page1 = &mem[1 * page_size];
 
-	/* init internal state */
-	init_completion(&amp_dev->irq_done);
+	/* create the first (and only) device */
+	init_vmadev(&amp_dev->one_dev, amp_dev, 1);
 
+	/* create the structures that point to the message FIFOs in memory */
 	spsc_open(&amp_dev->drv2dev, "drv2dev", page0, page_size);
 	spsc_open(&amp_dev->dev2drv, "dev2drv", page1, page_size);
 
@@ -69,7 +179,7 @@ int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 
 void virtio_msg_amp_unregister(struct virtio_msg_amp *amp_dev) {
 	/* unblock any straglers */
-	complete_all(&amp_dev->irq_done);
+	/* destroy all devices */
 }
 
 int  virtio_msg_amp_notify_rx(struct virtio_msg_amp *amp_dev, u32 notify_idx) {

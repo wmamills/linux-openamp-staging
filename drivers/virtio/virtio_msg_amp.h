@@ -18,6 +18,8 @@
 
 #include <linux/device.h>
 
+#include "virtio_msg.h"
+
 #include "spsc_queue.h"
 
 struct virtio_msg_amp;
@@ -26,6 +28,16 @@ struct virtio_msg_amp_ops {
 	int (*tx_notify)(struct virtio_msg_amp *amp_dev, u32 notify_idx);
 	struct device *(*get_device)(struct virtio_msg_amp *amp_dev);
 	void (*release)(struct virtio_msg_amp *amp_dev);
+};
+
+struct virtio_msg_amp_device {
+	struct virtio_msg_device this_dev;
+	struct virtio_msg_amp* amp_dev;
+
+	u16	dev_id;
+	u16	expected_response;
+	struct virtio_msg *response;
+	struct completion response_done;
 };
 
 /**
@@ -46,7 +58,9 @@ struct virtio_msg_amp {
 	/* internal state, list of devices on this bus */
 	spinlock_t lock;
 	struct list_head devices;
-	struct completion irq_done;
+
+	/* only do one device for now */
+	struct virtio_msg_amp_device one_dev;
 
 	/* messgae FIFOs */
 	struct spsc_queue drv2dev;	/* driver to device */
