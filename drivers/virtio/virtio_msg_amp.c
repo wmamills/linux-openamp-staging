@@ -79,12 +79,18 @@ static const char *virtio_msg_amp_bus_name(struct virtio_msg_device *vmdev)
 	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
 	struct device *pdev = amp_dev->ops->get_device(amp_dev);
 
+	dev_info(pdev, "get bus name for dev_id=%d\n",  vmadev->dev_id);
+
 	return dev_name(pdev);
 }
 
 static void virtio_msg_amp_synchronize_cbs(struct virtio_msg_device *vmdev)
 {
 	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+	dev_info(pdev, "sync cbs for dev_id=%d\n",  vmadev->dev_id);
 
 	/* hope for the best */
 }
@@ -92,15 +98,34 @@ static void virtio_msg_amp_synchronize_cbs(struct virtio_msg_device *vmdev)
 static void virtio_msg_amp_release(struct virtio_msg_device *vmdev)
 {
 	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+	vmadev->response = NULL;
+	vmadev->expected_response = 0;
+	complete_all(&vmadev->response_done);
+	vmadev->in_use = true;
+
+	dev_info(pdev, "release for dev_id=%d\n", vmadev->dev_id);
 }
 
 static int virtio_msg_amp_vqs_prepare(struct virtio_msg_device *vmdev)
 {
+	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+	dev_info(pdev, "prep vqs for dev_id=%d\n", vmadev->dev_id);
 	return 0;
 }
 
 static void virtio_msg_amp_vqs_release(struct virtio_msg_device *vmdev)
 {
+	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
+	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+
+	dev_info(pdev, "release vqs for dev_id=%d\n", vmadev->dev_id);
 }
 
 static struct virtio_msg_ops amp_msg_device_ops = {
@@ -121,6 +146,7 @@ static void init_vmadev(struct virtio_msg_amp_device* vmadev,
 	vmadev->this_dev.vdev.dev.parent = parent_dev;
 
 	vmadev->amp_dev = amp_dev;
+	vmadev->in_use = true;
 	vmadev->dev_id = dev_id;
 	vmadev->expected_response = 0;
 	vmadev->response = NULL;
@@ -194,24 +220,16 @@ static void tx_msg(struct virtio_msg_amp *amp_dev, void* msg_buf,
 	amp_dev->ops->tx_notify(amp_dev, 0);
 }
 
-static u8 demo_msg[40] = {
-	0x00, /* type */
-	0x09, /* id: get status */
-	0x00, 0x00, /* dev_id */
-	0x00, 0x00, 0x00, 0x00  /* index */
-};
-
-static u8 demo_rx_msg[64];
-
 /* normal API */
 int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	size_t page_size = 4096;
 	char* mem = amp_dev->shmem;
 	void* page0 = &mem[0 * page_size];
 	void* page1 = &mem[1 * page_size];
+	int err;
 
 	/* create the first (and only) device */
-	init_vmadev(&amp_dev->one_dev, amp_dev, 0);
+	init_vmadev(&amp_dev->one_dev, amp_dev, 1);
 
 	/* create the structures that point to the message FIFOs in memory */
 	spsc_open(&amp_dev->drv2dev, "drv2dev", page0, page_size);
@@ -220,17 +238,21 @@ int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	/* empty the rx queue */
 	rx_proc_all(amp_dev);
 
-	/* queue a message */
-	virtio_msg_amp_send(&amp_dev->one_dev.this_dev,
-		(struct virtio_msg *) demo_msg,
-		(struct virtio_msg *) demo_rx_msg);
+	/* register with the virtio-msg common code */
+	err = virtio_msg_register(&amp_dev->one_dev.this_dev);
 
-	return 0;
+	return err;
+}
+
+static void virtio_msg_amp_device_unregister(
+	struct virtio_msg_amp_device *vmadev) {
+	if (vmadev->in_use)
+		virtio_msg_unregister(&vmadev->this_dev);
 }
 
 void virtio_msg_amp_unregister(struct virtio_msg_amp *amp_dev) {
-	/* unblock any straglers */
 	/* destroy all devices */
+	virtio_msg_amp_device_unregister(&amp_dev->one_dev);
 }
 
 int  virtio_msg_amp_notify_rx(struct virtio_msg_amp *amp_dev, u32 notify_idx) {
