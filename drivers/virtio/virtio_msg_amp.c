@@ -48,20 +48,27 @@ static int virtio_msg_amp_send(struct virtio_msg_device *vmdev,
 		response->id = 0;
 		type = request->type | VIRTIO_MSG_TYPE_RESPONSE;
 		vmadev->expected_response = MK_RESP(type, request->id);
+		vmadev->response = response;
 		reinit_completion(&vmadev->response_done);
 	}
 
 	tx_msg(amp_dev, request, len);
 
-	if (response)
+	if (response) {
+		struct device *pdev = amp_dev->ops->get_device(amp_dev);
 		if (wait_for_it(&vmadev->response_done, 1000)) {
-			struct device *pdev = amp_dev->ops->get_device(amp_dev);
-
 			dev_err(pdev,
 			  "Timeout waiting for responce dev_id=%x, type/id=%x\n",
 			  vmadev->dev_id, vmadev->expected_response);
 			return 2;
+		} else {
+			dev_info(pdev,
+			  "send_response complete dev_id=%x, type/id=%x\n",
+			  vmadev->dev_id, vmadev->expected_response);
+			return 2;
+
 		}
+	}
 
 	return 0;
 }
@@ -125,19 +132,51 @@ int virtio_msg_amp_register_v0(struct virtio_msg_amp *amp_dev) {
 	return 0;
 }
 
-static u8 demo_msg[40] = {
-	0x00, /* type */
-	0x09, /* id: get status */
-	0x00, 0x00, /* dev_id */
-	0x00, 0x00, 0x00, 0x00  /* index */
-};
+static struct virtio_msg_amp_device *amp_find_dev(
+	struct virtio_msg_amp 	*amp_dev,
+	u16			dev_id)
+{
+	if (amp_dev->one_dev.dev_id == dev_id)
+		return &amp_dev->one_dev;
 
-static void rx_dump_all(struct virtio_msg_amp *amp_dev) {
+	return NULL;
+}
+
+static bool vmadev_check_rx_match(
+	struct virtio_msg_amp_device	*vmadev,
+	struct virtio_msg 		*msg)
+{
+	u16 match;
+
+	match = MK_RESP(msg->type, msg->id);
+	if (vmadev->expected_response == match ) {
+		memcpy(vmadev->response, msg, sizeof(*msg));
+		vmadev->expected_response = 0;
+		complete(&vmadev->response_done);
+	}
+	return false;
+}
+
+static void rx_proc_all(struct virtio_msg_amp *amp_dev) {
 	char buf[64];
 	struct device *pdev = amp_dev->ops->get_device(amp_dev);
+	struct virtio_msg_amp_device *vmadev;
+	struct virtio_msg *msg;
+	bool expected = false;
 
 	while (spsc_recv(&amp_dev->dev2drv, buf, 64)) {
 		dev_info(pdev, "RX MSG: %16ph \n", buf);
+		msg = (struct virtio_msg*) buf;
+		if ((vmadev = amp_find_dev(amp_dev, msg->dev_id))) {
+			if (vmadev_check_rx_match(vmadev, msg)) {
+				expected = true;
+			}
+		}
+		if (!expected) {
+			dev_err(pdev,
+				"Unexpected msg dev_id=%d, type/id=%x/%x\n",
+				msg->dev_id, msg->type, msg->id);
+		}
 	}
 }
 
@@ -154,6 +193,15 @@ static void tx_msg(struct virtio_msg_amp *amp_dev, void* msg_buf,
 	amp_dev->ops->tx_notify(amp_dev, 0);
 }
 
+static u8 demo_msg[40] = {
+	0x00, /* type */
+	0x09, /* id: get status */
+	0x00, 0x00, /* dev_id */
+	0x00, 0x00, 0x00, 0x00  /* index */
+};
+
+static u8 demo_rx_msg[64];
+
 /* normal API */
 int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	size_t page_size = 4096;
@@ -162,17 +210,19 @@ int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	void* page1 = &mem[1 * page_size];
 
 	/* create the first (and only) device */
-	init_vmadev(&amp_dev->one_dev, amp_dev, 1);
+	init_vmadev(&amp_dev->one_dev, amp_dev, 0);
 
 	/* create the structures that point to the message FIFOs in memory */
 	spsc_open(&amp_dev->drv2dev, "drv2dev", page0, page_size);
 	spsc_open(&amp_dev->dev2drv, "dev2drv", page1, page_size);
 
 	/* empty the rx queue */
-	rx_dump_all(amp_dev);
+	rx_proc_all(amp_dev);
 
 	/* queue a message */
-	tx_msg(amp_dev, demo_msg, sizeof demo_msg);
+	virtio_msg_amp_send(&amp_dev->one_dev.this_dev,
+		(struct virtio_msg *) demo_msg,
+		(struct virtio_msg *) demo_rx_msg);
 
 	return 0;
 }
@@ -183,7 +233,7 @@ void virtio_msg_amp_unregister(struct virtio_msg_amp *amp_dev) {
 }
 
 int  virtio_msg_amp_notify_rx(struct virtio_msg_amp *amp_dev, u32 notify_idx) {
-	rx_dump_all(amp_dev);
+	rx_proc_all(amp_dev);
 	return 0;
 }
 
