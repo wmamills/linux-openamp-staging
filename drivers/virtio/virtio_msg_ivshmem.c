@@ -92,7 +92,7 @@ static struct virtio_msg_amp_ops ivshm_amp_ops = {
 static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct ivshm_dev *ivshm_dev;
-	int err, i;
+	int err, irq;
 	const char *device_name;
 	const char *name;
 	phys_addr_t addr;
@@ -167,8 +167,8 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err < 0)
 		goto error;
 
-	for (i = 0; i < ivshm_dev->vectors; i++) {
-		err = request_irq(pci_irq_vector(pdev, i), ivshm_irq_handler,
+	for (irq = 0; irq < ivshm_dev->vectors; irq++) {
+		err = request_irq(pci_irq_vector(pdev, irq), ivshm_irq_handler,
 				  IRQF_SHARED, device_name, ivshm_dev);
 		if (err)
 			goto error_irq;
@@ -192,8 +192,8 @@ error_reg:
 	pci_clear_master(pdev);
 
 error_irq:
-	while (--i > 0)
-		free_irq(pci_irq_vector(pdev, i), ivshm_dev);
+	while (--irq >= 0)
+		free_irq(pci_irq_vector(pdev, irq), ivshm_dev);
 	pci_free_irq_vectors(pdev);
 
 error:
