@@ -34,6 +34,7 @@ struct virtio_msg_amp_device {
 	struct virtio_msg_device this_dev;
 	struct virtio_msg_amp* amp_dev;
 
+	bool	in_use;
 	u16	dev_id;
 	u16	expected_response;
 	struct virtio_msg *response;
