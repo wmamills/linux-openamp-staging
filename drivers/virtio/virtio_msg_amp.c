@@ -153,6 +153,7 @@ static bool vmadev_check_rx_match(
 		memcpy(vmadev->response, msg, sizeof(*msg));
 		vmadev->expected_response = 0;
 		complete(&vmadev->response_done);
+		return true;
 	}
 	return false;
 }
