@@ -38,8 +38,8 @@ static irqreturn_t ivshm_irq_handler(int irq, void *dev_id)
 	err = virtio_msg_amp_notify_rx(&ivshm_dev->amp_dev, 0);
 	if (err)
 		dev_err(&ivshm_dev->pdev->dev, "ivshmem IRQ error %d", err);
-	else
-		dev_info(&ivshm_dev->pdev->dev, "ivshmem IRQ fired");
+	//else
+	//	dev_info(&ivshm_dev->pdev->dev, "ivshmem IRQ fired");
 
 	return IRQ_HANDLED;
 }
