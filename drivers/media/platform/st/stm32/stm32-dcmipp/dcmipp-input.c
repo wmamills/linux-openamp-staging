@@ -181,7 +181,10 @@ struct dcmipp_inp_device {
 	struct v4l2_subdev sd;
 	struct device *dev;
 	void __iomem *regs;
-	bool streaming;
+
+	/* Protect concurrent access to s_stream */
+	struct mutex lock;
+	u32 usecnt;
 };
 
 static const struct v4l2_mbus_framefmt fmt_default = {
@@ -283,8 +286,12 @@ static int dcmipp_inp_set_fmt(struct v4l2_subdev *sd,
 	struct v4l2_mbus_framefmt *mf;
 	int i;
 
-	if (inp->streaming)
+	mutex_lock(&inp->lock);
+
+	if (inp->usecnt) {
+		mutex_unlock(&inp->lock);
 		return -EBUSY;
+	}
 
 	mf = v4l2_subdev_state_get_format(sd_state, fmt->pad);
 
@@ -312,6 +319,8 @@ static int dcmipp_inp_set_fmt(struct v4l2_subdev *sd,
 			dcmipp_inp_adjust_fmt(inp, mf, 1);
 		}
 	}
+
+	mutex_unlock(&inp->lock);
 
 	return 0;
 }
@@ -485,40 +494,53 @@ static int dcmipp_inp_s_stream(struct v4l2_subdev *sd, int enable)
 		return -EINVAL;
 	s_subdev = media_entity_to_v4l2_subdev(pad->entity);
 
+	mutex_lock(&inp->lock);
+
 	if (enable) {
+		/* Nothing to do if already enabled by someone */
+		if (inp->usecnt)
+			goto out;
+
 		if (inp->ved.bus_type == V4L2_MBUS_PARALLEL ||
 		    inp->ved.bus_type == V4L2_MBUS_BT656)
 			ret = dcmipp_inp_configure_parallel(inp, enable);
 		else if (inp->ved.bus_type == V4L2_MBUS_CSI2_DPHY)
 			ret = dcmipp_inp_configure_csi(inp);
 		if (ret)
-			return ret;
+			goto error_s_stream;
 
 		ret = v4l2_subdev_call(s_subdev, video, s_stream, enable);
 		if (ret < 0) {
 			dev_err(inp->dev,
 				"failed to start source subdev streaming (%d)\n",
 				ret);
-			return ret;
+			goto error_s_stream;
 		}
 	} else {
+		if (inp->usecnt > 1)
+			goto out;
+
 		ret = v4l2_subdev_call(s_subdev, video, s_stream, enable);
 		if (ret < 0) {
 			dev_err(inp->dev,
 				"failed to stop source subdev streaming (%d)\n",
 				ret);
-			return ret;
+			goto error_s_stream;
 		}
 
 		if (inp->ved.bus_type == V4L2_MBUS_PARALLEL ||
 		    inp->ved.bus_type == V4L2_MBUS_BT656) {
 			ret = dcmipp_inp_configure_parallel(inp, enable);
 			if (ret)
-				return ret;
+				goto error_s_stream;
 		}
 	}
 
-	inp->streaming = enable;
+out:
+	inp->usecnt += enable ? 1 : -1;
+
+error_s_stream:
+	mutex_unlock(&inp->lock);
 
 	return ret;
 }
@@ -550,6 +572,7 @@ void dcmipp_inp_ent_release(struct dcmipp_ent_device *ved)
 			container_of(ved, struct dcmipp_inp_device, ved);
 
 	dcmipp_ent_sd_unregister(ved, &inp->sd);
+	mutex_destroy(&inp->lock);
 }
 
 #define DCMIPP_INP_SINK_PAD_NB_MP13	1
@@ -578,6 +601,9 @@ struct dcmipp_ent_device *dcmipp_inp_ent_init(const char *entity_name,
 
 	inp->regs = dcmipp->regs;
 
+	/* Initialize the lock */
+	mutex_init(&inp->lock);
+
 	/* Initialize ved and sd */
 	ret = dcmipp_ent_sd_register(&inp->ved, &inp->sd, &dcmipp->v4l2_dev,
 				     entity_name, MEDIA_ENT_F_VID_IF_BRIDGE,
@@ -585,6 +611,7 @@ struct dcmipp_ent_device *dcmipp_inp_ent_init(const char *entity_name,
 				     &dcmipp_inp_int_ops, &dcmipp_inp_ops,
 				     NULL, NULL);
 	if (ret) {
+		mutex_destroy(&inp->lock);
 		kfree(inp);
 		return ERR_PTR(ret);
 	}
