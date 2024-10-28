@@ -186,11 +186,13 @@ static void rx_proc_all(struct virtio_msg_amp *amp_dev) {
 	struct virtio_msg_amp_device *vmadev;
 	struct virtio_msg *msg;
 	bool expected = false;
+	u16 dev_id;
 
 	while (spsc_recv(&amp_dev->dev2drv, buf, 64)) {
 		dev_info(pdev, "RX MSG: %16ph \n", buf);
 		msg = (struct virtio_msg*) buf;
-		if ((vmadev = amp_find_dev(amp_dev, msg->dev_id))) {
+		dev_id =  le16_to_cpu(msg->dev_id);
+		if ((vmadev = amp_find_dev(amp_dev, dev_id))) {
 			if (vmadev_check_rx_match(vmadev, msg)) {
 				expected = true;
 			}
