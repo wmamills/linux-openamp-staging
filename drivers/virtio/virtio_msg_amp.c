@@ -34,38 +34,41 @@ static int virtio_msg_amp_send(struct virtio_msg_device *vmdev,
 {
 	struct virtio_msg_amp_device *vmadev = to_virtio_msg_amp_device(vmdev);
 	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
+	struct device *pdev = amp_dev->ops->get_device(amp_dev);
 	int len = sizeof(*request);
-	u8 type;
+	int rc = 0;
+	u16 match = MK_RESP(request->type | VIRTIO_MSG_TYPE_RESPONSE, request->id);
 
 	if (response) {
 		/* init a bad response in case we fail or timeout */
 		response->type = 0;
 		response->id = 0;
-		type = request->type | VIRTIO_MSG_TYPE_RESPONSE;
-		vmadev->expected_response = MK_RESP(type, request->id);
+		dev_info(pdev, "send w/ resp dev_id=%d type/id=%04x\n",
+			vmadev->dev_id, match);
 		vmadev->response = response;
+		vmadev->expected_response = match;
 		reinit_completion(&vmadev->response_done);
+	} else {
+		dev_info(pdev, "send only dev_id=%d type/id=%04x\n",
+			vmadev->dev_id, match);
 	}
 
 	tx_msg(amp_dev, request, len);
 
 	if (response) {
-		struct device *pdev = amp_dev->ops->get_device(amp_dev);
 		if (!wait_for_it(&vmadev->response_done, 5000)) {
 			dev_err(pdev,
-			  "Timeout waiting for responce dev_id=%x, type/id=%x\n",
-			  vmadev->dev_id, vmadev->expected_response);
-			return 2;
+			  "response wait timeout dev_id=%d, type/id=%04x\n",
+			  vmadev->dev_id, match);
+			rc = -2;
 		} else {
 			dev_info(pdev,
-			  "send_response complete dev_id=%x, type/id=%x\n",
-			  vmadev->dev_id, vmadev->expected_response);
-			return 2;
-
+			  "send response complete dev_id=%d, type/id=%04x\n",
+			  vmadev->dev_id, match);
 		}
 	}
 
-	return 0;
+	return rc;
 }
 
 static const char *virtio_msg_amp_bus_name(struct virtio_msg_device *vmdev)
@@ -158,6 +161,9 @@ static struct virtio_msg_amp_device *amp_find_dev(
 	struct virtio_msg_amp 	*amp_dev,
 	u16			dev_id)
 {
+	//printk(KERN_ERR "find device %d to %d\n",
+	//	dev_id, amp_dev->one_dev.dev_id);
+
 	if (amp_dev->one_dev.dev_id == dev_id)
 		return &amp_dev->one_dev;
 
@@ -171,6 +177,9 @@ static bool vmadev_check_rx_match(
 	u16 match;
 
 	match = MK_RESP(msg->type, msg->id);
+	//printk(KERN_ERR "try to match %04x to %04x\n",
+	//	match, vmadev->expected_response);
+
 	if (vmadev->expected_response == match ) {
 		memcpy(vmadev->response, msg, sizeof(*msg));
 		vmadev->expected_response = 0;
@@ -199,7 +208,7 @@ static void rx_proc_all(struct virtio_msg_amp *amp_dev) {
 		}
 		if (!expected) {
 			dev_err(pdev,
-				"Unexpected msg dev_id=%d, type/id=%x/%x\n",
+				"Unexpected msg dev_id=%d, type/id=%02x/%02x\n",
 				msg->dev_id, msg->type, msg->id);
 		}
 	}
