@@ -494,7 +494,7 @@ static int dcmipp_inp_s_stream(struct v4l2_subdev *sd, int enable)
 		if (ret)
 			return ret;
 
-		ret = dcmipp_s_stream_helper(s_subdev, enable);
+		ret = v4l2_subdev_call(s_subdev, video, s_stream, enable);
 		if (ret < 0) {
 			dev_err(inp->dev,
 				"failed to start source subdev streaming (%d)\n",
@@ -502,7 +502,7 @@ static int dcmipp_inp_s_stream(struct v4l2_subdev *sd, int enable)
 			return ret;
 		}
 	} else {
-		ret = dcmipp_s_stream_helper(s_subdev, enable);
+		ret = v4l2_subdev_call(s_subdev, video, s_stream, enable);
 		if (ret < 0) {
 			dev_err(inp->dev,
 				"failed to stop source subdev streaming (%d)\n",
