@@ -22,16 +22,10 @@ static void tx_msg(struct virtio_msg_amp *amp_dev, void* msg_buf, size_t size);
 /* wait for completion with timeout */
 static bool wait_for_it(struct completion* p_it, u32 msec)
 {
-	long remaining, consumed;
+	long consumed;
 
-	for ( remaining = msecs_to_jiffies(msec); remaining > 0;
-		remaining -= consumed) {
-		consumed = wait_for_completion_interruptible_timeout(
-			p_it, remaining);
-		if (consumed <= 0)
-			return false;
-	}
-	return true;
+	consumed = wait_for_completion_timeout(p_it, msecs_to_jiffies(msec));
+	return (consumed > 0);
 }
 
 static int virtio_msg_amp_send(struct virtio_msg_device *vmdev,
@@ -57,7 +51,7 @@ static int virtio_msg_amp_send(struct virtio_msg_device *vmdev,
 
 	if (response) {
 		struct device *pdev = amp_dev->ops->get_device(amp_dev);
-		if (wait_for_it(&vmadev->response_done, 1000)) {
+		if (!wait_for_it(&vmadev->response_done, 5000)) {
 			dev_err(pdev,
 			  "Timeout waiting for responce dev_id=%x, type/id=%x\n",
 			  vmadev->dev_id, vmadev->expected_response);
