@@ -230,7 +230,7 @@ int  virtio_msg_amp_register(struct virtio_msg_amp *amp_dev) {
 	int err;
 
 	/* create the first (and only) device */
-	init_vmadev(&amp_dev->one_dev, amp_dev, 1);
+	init_vmadev(&amp_dev->one_dev, amp_dev, 0);
 
 	/* create the structures that point to the message FIFOs in memory */
 	spsc_open(&amp_dev->drv2dev, "drv2dev", page0, page_size);
