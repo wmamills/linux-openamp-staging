@@ -68,6 +68,10 @@ struct virtio_msg_amp {
 	/* messgae FIFOs */
 	struct spsc_queue drv2dev;	/* driver to device */
 	struct spsc_queue dev2drv;	/* device to driver */
+
+	/* irq context private */
+	u8 rx_temp_buf[64];
+
 };
 
 /* this one is temporary as the v0 layout is not self describing */

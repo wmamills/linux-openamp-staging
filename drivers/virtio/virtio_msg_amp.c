@@ -211,12 +211,12 @@ static bool vmadev_check_rx_match(
 }
 
 static void rx_proc_all(struct virtio_msg_amp *amp_dev) {
-	char buf[64];
 	struct device *pdev = amp_dev->ops->get_device(amp_dev);
 	struct virtio_msg_amp_device *vmadev;
 	struct virtio_msg *msg;
 	bool expected = false;
 	u16 dev_id;
+	u8 *buf = amp_dev->rx_temp_buf;
 
 	while (spsc_recv(&amp_dev->dev2drv, buf, 64)) {
 		dev_info(pdev, "RX MSG: %16ph \n", buf);
