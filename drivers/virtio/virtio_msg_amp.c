@@ -43,6 +43,19 @@ static int virtio_msg_amp_send(struct virtio_msg_device *vmdev,
 		/* init a bad response in case we fail or timeout */
 		response->type = 0;
 		response->id = 0;
+
+		dev_info(pdev, "about to grab mutex dev_id=%d type/id=%04x\n",
+			vmadev->dev_id, match);
+
+		/* we need to serialize messages that need a response */
+		mutex_lock(&vmadev->response_lock);
+
+		/* does the device still exist? */
+		if (!vmadev->in_use) {
+			mutex_unlock(&vmadev->response_lock);
+			return -2;
+		}
+
 		dev_info(pdev, "send w/ resp dev_id=%d type/id=%04x\n",
 			vmadev->dev_id, match);
 		vmadev->response = response;
@@ -66,6 +79,9 @@ static int virtio_msg_amp_send(struct virtio_msg_device *vmdev,
 			  "send response complete dev_id=%d, type/id=%04x\n",
 			  vmadev->dev_id, match);
 		}
+
+		/* in either case we need to release the lock */
+		mutex_unlock(&vmadev->response_lock);
 	}
 
 	return rc;
@@ -99,12 +115,16 @@ static void virtio_msg_amp_release(struct virtio_msg_device *vmdev)
 	struct virtio_msg_amp *amp_dev = vmadev->amp_dev;
 	struct device *pdev = amp_dev->ops->get_device(amp_dev);
 
-	vmadev->response = NULL;
-	vmadev->expected_response = 0;
-	complete_all(&vmadev->response_done);
-	vmadev->in_use = true;
+	dev_info(pdev, "starting release for dev_id=%d\n", vmadev->dev_id);
 
-	dev_info(pdev, "release for dev_id=%d\n", vmadev->dev_id);
+	/* let any waiting thread know we are going away */
+	vmadev->in_use = false;
+	vmadev->expected_response = 0;
+	vmadev->response = NULL;
+	complete_all(&vmadev->response_done);
+	mutex_unlock(&vmadev->response_lock);
+
+	dev_info(pdev, "release done for dev_id=%d\n", vmadev->dev_id);
 }
 
 static int virtio_msg_amp_vqs_prepare(struct virtio_msg_device *vmdev)
@@ -147,6 +167,7 @@ static void init_vmadev(struct virtio_msg_amp_device* vmadev,
 	vmadev->amp_dev = amp_dev;
 	vmadev->in_use = true;
 	vmadev->dev_id = dev_id;
+	mutex_init(&vmadev->response_lock);
 	vmadev->expected_response = 0;
 	vmadev->response = NULL;
 	init_completion(&vmadev->response_done);
