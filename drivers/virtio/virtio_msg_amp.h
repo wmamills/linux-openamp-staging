@@ -36,6 +36,8 @@ struct virtio_msg_amp_device {
 
 	bool	in_use;
 	u16	dev_id;
+
+	struct 	mutex response_lock;
 	u16	expected_response;
 	struct virtio_msg *response;
 	struct completion response_done;
