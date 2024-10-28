@@ -8,6 +8,7 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 
 #include "virtio_msg_amp.h"
 
@@ -215,7 +216,10 @@ static void tx_msg(struct virtio_msg_amp *amp_dev, void* msg_buf,
 	dev_info(pdev, "TX MSG: %16ph \n", msg_buf);
 
 	/* queue a message */
-	spsc_send(&amp_dev->drv2dev, msg_buf, sizeof msg_len);
+	while ( ! spsc_send(&amp_dev->drv2dev, msg_buf, sizeof msg_len) ) {
+		dev_info(pdev, "out of tx space, sleep");
+		mdelay(10);
+	}
 
 	/* Notify the peer */
 	amp_dev->ops->tx_notify(amp_dev, 0);
