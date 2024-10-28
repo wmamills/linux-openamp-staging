@@ -143,6 +143,7 @@ static void init_vmadev(struct virtio_msg_amp_device* vmadev,
 	struct device* parent_dev = amp_dev->ops->get_device(amp_dev);
 	vmadev->this_dev.ops = &amp_msg_device_ops;
 	vmadev->this_dev.data = NULL;
+	vmadev->this_dev.dev_id = dev_id;
 	vmadev->this_dev.vdev.dev.parent = parent_dev;
 
 	vmadev->amp_dev = amp_dev;
