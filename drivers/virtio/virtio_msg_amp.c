@@ -242,7 +242,7 @@ static void tx_msg(struct virtio_msg_amp *amp_dev, void* msg_buf,
 	dev_info(pdev, "TX MSG: %16ph \n", msg_buf);
 
 	/* queue a message */
-	while ( ! spsc_send(&amp_dev->drv2dev, msg_buf, sizeof msg_len) ) {
+	while ( ! spsc_send(&amp_dev->drv2dev, msg_buf, msg_len) ) {
 		dev_info(pdev, "out of tx space, sleep");
 		mdelay(10);
 	}
