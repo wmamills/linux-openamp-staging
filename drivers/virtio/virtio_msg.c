@@ -340,6 +340,14 @@ static void vmsg_del_vqs(struct virtio_device *vdev)
 	vmdev->ops->release_vqs(vmdev);
 }
 
+
+static u64* va_get(u64 pa) {
+	u64 *va;
+
+	va = (u64*) phys_to_virt( (phys_addr_t) pa);
+	return va;
+}
+
 static struct virtqueue *vmsg_setup_vq(struct virtio_msg_device *vmdev,
 				       unsigned int index,
 				       void (*callback)(struct virtqueue *vq),
@@ -403,6 +411,26 @@ static struct virtqueue *vmsg_setup_vq(struct virtio_msg_device *vmdev,
 		request.set_vqueue.driver_addr,
 		request.set_vqueue.device_addr);
 
+	pr_err("%s: VQ set (VA), "
+		"desc_va=%px driver_va=%px device_va=%px \n",
+		__func__,
+		va_get(request.set_vqueue.descriptor_addr),
+		va_get(request.set_vqueue.driver_addr),
+		va_get(request.set_vqueue.device_addr));
+
+#if 0
+	u64* p = va_get(request.set_vqueue.descriptor_addr);
+	int i;
+	for ( i=0; i < 0x1000; i++, p++)
+		p[i] =0xABCD1230;
+#endif
+
+	pr_err("%s: VQ set data, "
+		"desc[0]=%08llx driver[0]=%08llx device[0]=%08llx \n",
+		__func__,
+		*va_get(request.set_vqueue.descriptor_addr),
+		*va_get(request.set_vqueue.driver_addr),
+		*va_get(request.set_vqueue.device_addr));
 
 	ret = vmdev->ops->send(vmdev, &request, NULL);
 	if (ret < 0) {
