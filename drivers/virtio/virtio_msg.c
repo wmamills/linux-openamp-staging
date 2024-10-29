@@ -394,6 +394,16 @@ static struct virtqueue *vmsg_setup_vq(struct virtio_msg_device *vmdev,
 	request.set_vqueue.driver_addr = cpu_to_le64(virtqueue_get_avail_addr(vq));
 	request.set_vqueue.device_addr = cpu_to_le64(virtqueue_get_used_addr(vq));
 
+	pr_err("%s: VQ set index=%d, size=%d, "
+		"desc_addr=%08llx driver_addr=%08llx device_addr=%08llx \n",
+		__func__,
+		request.set_vqueue.index,
+		request.set_vqueue.size,
+		request.set_vqueue.descriptor_addr,
+		request.set_vqueue.driver_addr,
+		request.set_vqueue.device_addr);
+
+
 	ret = vmdev->ops->send(vmdev, &request, NULL);
 	if (ret < 0) {
 		pr_err("%s: Failed to send request (%d)\n", __func__, ret);
