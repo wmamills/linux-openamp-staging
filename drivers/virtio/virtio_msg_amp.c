@@ -217,6 +217,7 @@ static void rx_proc_all(struct virtio_msg_amp *amp_dev) {
 	bool expected = false;
 	u16 dev_id;
 	u8 *buf = amp_dev->rx_temp_buf;
+	int err;
 
 	while (spsc_recv(&amp_dev->dev2drv, buf, 64)) {
 		dev_info(pdev, "RX MSG: %40ph \n", buf);
@@ -225,6 +226,12 @@ static void rx_proc_all(struct virtio_msg_amp *amp_dev) {
 		if ((vmadev = amp_find_dev(amp_dev, dev_id))) {
 			if (vmadev_check_rx_match(vmadev, msg)) {
 				expected = true;
+			} else {
+				err = virtio_msg_receive(&vmadev->this_dev, msg);
+				if (!err)
+					expected = true;
+				else
+					dev_err(pdev, "vm rx err=%d", err);
 			}
 		}
 		if (!expected) {
