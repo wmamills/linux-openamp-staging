@@ -418,12 +418,12 @@ static struct virtqueue *vmsg_setup_vq(struct virtio_msg_device *vmdev,
 		va_get(request.set_vqueue.driver_addr),
 		va_get(request.set_vqueue.device_addr));
 
+	/* this only works if virtqueues are using PA */
 #if 0
 	u64* p = va_get(request.set_vqueue.descriptor_addr);
 	int i;
 	for ( i=0; i < 0x1000; i++, p++)
 		p[i] =0xABCD1230;
-#endif
 
 	pr_err("%s: VQ set data, "
 		"desc[0]=%08llx driver[0]=%08llx device[0]=%08llx \n",
@@ -431,6 +431,7 @@ static struct virtqueue *vmsg_setup_vq(struct virtio_msg_device *vmdev,
 		*va_get(request.set_vqueue.descriptor_addr),
 		*va_get(request.set_vqueue.driver_addr),
 		*va_get(request.set_vqueue.device_addr));
+#endif
 
 	ret = vmdev->ops->send(vmdev, &request, NULL);
 	if (ret < 0) {
