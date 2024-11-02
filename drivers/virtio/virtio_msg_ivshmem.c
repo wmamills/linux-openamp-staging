@@ -13,14 +13,12 @@
 #include <linux/pci.h>
 #include <linux/completion.h>
 
+#include "virtio_msg_amp.h"
+
 #define DRV_NAME "virtio_msg_ivshmem"
 
-struct my_info_t {
-	int num;
-};
-
 struct ivshm_dev {
-	struct my_info_t info;
+	struct virtio_msg_amp amp_dev;
 	struct pci_dev *pdev;
 	struct ivshm_regs __iomem *regs;
 	void *shmem;
@@ -39,15 +37,18 @@ static irqreturn_t ivshm_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int ivshm_release(struct my_info_t *info, struct inode *inode)
+#if 0
+static int ivshm_release(struct virtio_msg_amp amp_dev)
 {
 	struct ivshm_dev *ivshm_dev =
-		container_of(info, struct ivshm_dev, info);
+		container_of(amp_dev, struct ivshm_dev, amp_dev);
 
 	writel(0, &ivshm_dev->regs->int_status);
 	return 0;
 }
+#endif
 
+#if 0
 // do the "uio" test with Zephyr peer
 static int uio_test(struct ivshm_dev *ivshm_dev, u32 peer_vmid)
 {
@@ -107,6 +108,7 @@ static int uio_test(struct ivshm_dev *ivshm_dev, u32 peer_vmid)
 	dev_info(pdev, "Data ok. %d byte(s) checked.\n", i * 4);
 	return 0;
 }
+#endif 
 
 static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
@@ -136,10 +138,6 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		err = -ENOMEM;
 		goto error;
 	}
-
-	//ivshm_dev->info.name = device_name;
-	//ivshm_dev->info.version = "1";
-	//ivshm_dev->info.release = ivshm_release;
 
 	err = pcim_iomap_regions(pdev, BIT(2) | BIT(0), device_name);
 	if (err) {
@@ -191,9 +189,7 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			goto error_irq;
 	}
 
-	//ivshm_dev->info.irq = UIO_IRQ_CUSTOM;
-
-	//err = uio_register_device(&pdev->dev, &ivshm_dev->info);
+	err = virtio_msg_amp_register(&ivshm_dev->amp_dev);
 	if (err)
 		goto error_irq;
 
@@ -202,9 +198,6 @@ static int ivshm_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, ivshm_dev);
 	ivshm_dev->pdev = pdev;
 	init_completion(&ivshm_dev->irq_done);
-
-	// run the test
-	uio_test(ivshm_dev, 0);
 
 	dev_info(&pdev->dev, "probe successful\n");
 
