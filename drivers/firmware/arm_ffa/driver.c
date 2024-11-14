@@ -788,7 +788,7 @@ static int ffa_notification_bitmap_destroy(void)
 #define SPM_FRAMEWORK_BITMAP			BIT(2)
 #define NS_HYP_FRAMEWORK_BITMAP			BIT(3)
 
-#define FRAMEWORK_NOTIFY_RX_BUFFER_FULL		BIT(0)
+#define FRAMEWORK_NOTIFY_RX_BUFFER_FULL		BIT(32)
 
 static int ffa_notification_bind_common(u16 dst_id, u64 bitmap,
 					u32 flags, bool is_bind)
@@ -1324,7 +1324,7 @@ static void notif_get_and_handle(void *unused)
 	struct ffa_notify_bitmaps bitmaps;
 
 	rc = ffa_notification_get(SECURE_PARTITION_BITMAP |
-				  SPM_FRAMEWORK_BITMAP, &bitmaps);
+				  SPM_FRAMEWORK_BITMAP | NS_HYP_FRAMEWORK_BITMAP, &bitmaps);
 	if (rc) {
 		pr_err("Failed to retrieve notifications with %d!\n", rc);
 		return;
