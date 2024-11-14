@@ -1472,6 +1472,14 @@ static int ffa_add_partition_info(int vm_id)
 	return ret;
 }
 
+static void hack_override_uuid(struct ffa_partition_info *buf)
+{
+	buf->uuid[0] = 0x9120b8c5;
+	buf->uuid[1] = 0xbb48fed4;
+	buf->uuid[2] = 0x244de7b7;
+	buf->uuid[3] = 0xbe28bb6e;
+}
+
 static int ffa_scan_partitions(void)
 {
 	int count, idx;
@@ -1488,6 +1496,8 @@ static int ffa_scan_partitions(void)
 	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++) {
 		if (drv_info->vm_id == tpbuf->id)
 			continue;
+
+		hack_override_uuid(tpbuf);
 
 		import_uuid(&uuid, (u8 *)tpbuf->uuid);
 
