@@ -728,7 +728,7 @@ static bool optee_ffa_exchange_caps(struct ffa_device *ffa_dev,
 	return true;
 }
 
-static void notif_callback(int notify_id, void *cb_data)
+static void notif_callback(int notify_id, void *cb_data, void *buf)
 {
 	struct optee *optee = cb_data;
 
