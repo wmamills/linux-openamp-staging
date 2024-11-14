@@ -1267,8 +1267,9 @@ static int ffa_notify_send(struct ffa_device *dev, int notify_id,
 
 static void handle_framework_notif_callbacks(u64 bitmap)
 {
-	int notify_id = 0, recv_vm_id;
-	struct ffa_indirect_msg_hdr *msg, *buf;
+	int notify_id = 0, sender_vm_id;
+	struct ffa_indirect_msg_hdr *msg;
+	void *buf;
 	struct notifier_cb_info *cb_info = NULL;
 
 	/* Only one framework notification defined and supported */
@@ -1278,20 +1279,19 @@ static void handle_framework_notif_callbacks(u64 bitmap)
 	mutex_lock(&drv_info->rx_lock);
 
 	msg = drv_info->rx_buffer;
-	recv_vm_id = RECEIVER_ID(msg->send_recv_id);
-	buf = kmalloc(sizeof(*buf) + msg->size, GFP_KERNEL);
+	sender_vm_id = SENDER_ID(msg->send_recv_id);
+	buf = kmalloc(msg->size, GFP_KERNEL);
 	if (!buf) {
 		mutex_unlock(&drv_info->rx_lock);
 		return;
 	}
-	memcpy(buf, msg + msg->offset, sizeof(*buf) + msg->size);
-	buf->offset = sizeof(*buf);
+	memcpy(buf, (void *)msg + msg->offset, msg->size);
 	mutex_unlock(&drv_info->rx_lock);
 
 	ffa_rx_release();
 
 	mutex_lock(&drv_info->notify_lock);
-	cb_info = notifier_hash_node_get(notify_id, recv_vm_id, true);
+	cb_info = notifier_hash_node_get(notify_id, sender_vm_id, true);
 	mutex_unlock(&drv_info->notify_lock);
 
 	if (cb_info && cb_info->cb)
