@@ -451,7 +451,7 @@ struct ffa_cpu_ops {
 };
 
 typedef void (*ffa_sched_recv_cb)(u16 vcpu, bool is_per_vcpu, void *cb_data);
-typedef void (*ffa_notifier_cb)(int notify_id, void *cb_data);
+typedef void (*ffa_notifier_cb)(int notify_id, void *cb_data, void *buf);
 
 struct ffa_notifier_ops {
 	int (*sched_recv_cb_register)(struct ffa_device *dev,

@@ -1295,7 +1295,7 @@ static void handle_framework_notif_callbacks(u64 bitmap)
 	mutex_unlock(&drv_info->notify_lock);
 
 	if (cb_info && cb_info->cb)
-		cb_info->cb(notify_id, buf);
+		cb_info->cb(notify_id, cb_info->cb_data, buf);
 	kfree(buf);
 }
 
@@ -1314,7 +1314,7 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 		mutex_unlock(&drv_info->notify_lock);
 
 		if (cb_info && cb_info->cb)
-			cb_info->cb(notify_id, cb_info->cb_data);
+			cb_info->cb(notify_id, cb_info->cb_data, NULL);
 	}
 }
 
