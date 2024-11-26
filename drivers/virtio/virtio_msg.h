@@ -17,7 +17,9 @@
 #ifndef _DRIVERS_VIRTIO_VIRTIO_MSG_H
 #define _DRIVERS_VIRTIO_VIRTIO_MSG_H
 
+#include <linux/device.h>
 #include <linux/list.h>
+#include <linux/miscdevice.h>
 #include <linux/pm.h>
 #include <linux/spinlock.h>
 #include <linux/virtio.h>
@@ -132,5 +134,28 @@ int vmsg_ffa_bus_area_unshare(struct device *dev, dma_addr_t *dma_handle,
 #ifdef CONFIG_VIRTIO_MSG_FFA_DMA_OPS
 extern const struct dma_map_ops virtio_msg_ffa_dma_ops;
 #endif
+
+/* Virtio msg userspace interface */
+struct virtio_msg_user_device;
+
+struct virtio_msg_user_ops {
+	int (*send)(struct virtio_msg_user_device *vmudev, struct virtio_msg *msg);
+};
+
+/**
+ * struct virtio_msg_user_device - host side device using virtio message
+ */
+struct virtio_msg_user_device {
+	struct virtio_msg_user_ops *ops;
+	struct miscdevice misc;
+	struct virtio_msg_async async;
+	struct virtio_msg *msg;
+	struct device *parent;
+	char name[15];
+	void *priv;
+};
+
+int virtio_msg_user_register(struct virtio_msg_user_device *vmudev);
+void virtio_msg_user_unregister(struct virtio_msg_user_device *vmudev);
 
 #endif /* _DRIVERS_VIRTIO_VIRTIO_MSG_H */
