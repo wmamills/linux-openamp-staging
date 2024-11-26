@@ -10,6 +10,7 @@
 #define _DRIVERS_VIRTIO_VIRTIO_MSG_H
 
 #include <linux/list.h>
+#include <linux/miscdevice.h>
 #include <linux/pm.h>
 #include <linux/virtio.h>
 #include <uapi/linux/virtio_msg.h>
@@ -113,5 +114,37 @@ static inline int virtio_msg_restore(struct virtio_msg_device *vmdev)
 	return virtio_device_restore(&vmdev->vdev);
 }
 #endif
+
+/* Virtio msg userspace interface */
+struct virtio_msg_user_device;
+
+struct virtio_msg_user_ops {
+	int (*send)(struct virtio_msg_user_device *vmudev, struct virtio_msg *msg);
+};
+
+/**
+ * struct virtio_msg_user_device - host side device using virtio message
+ */
+struct virtio_msg_user_device {
+	struct virtio_msg_user_ops *ops;
+	struct miscdevice misc;
+	struct virtio_msg_async r_async;
+	struct virtio_msg_async w_async;
+	struct virtio_msg *msg;
+	struct device *parent;
+	char name[15];
+	void *priv;
+};
+
+#if IS_REACHABLE(CONFIG_VIRTIO_MSG_USER)
+int virtio_msg_user_register(struct virtio_msg_user_device *vmudev);
+void virtio_msg_user_unregister(struct virtio_msg_user_device *vmudev);
+#else
+static inline int virtio_msg_user_register(struct virtio_msg_user_device *vmudev)
+{
+	return -EOPNOTSUPP;
+}
+static inline void virtio_msg_user_unregister(struct virtio_msg_user_device *vmudev) {}
+#endif /* CONFIG_VIRTIO_MSG_USER */
 
 #endif /* _DRIVERS_VIRTIO_VIRTIO_MSG_H */
