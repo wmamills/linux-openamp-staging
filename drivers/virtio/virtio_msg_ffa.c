@@ -55,6 +55,7 @@ struct shared_area {
 /* Represents channel bus corresponding to a partition */
 struct virtio_msg_ffa_device {
 	struct virtio_msg_device *vmdevs;
+	struct virtio_msg_user_device vmudev;
 	int vmdev_count;
 	struct ffa_device *ffa_dev;
 	struct ida area_id_map;
@@ -65,9 +66,11 @@ struct virtio_msg_ffa_device {
 
 	bool indirect;
 	bool reserved_mem;
+	bool passive;
 };
 
 #define to_vmfdev(_vmdev) ((struct virtio_msg_ffa_device *) vmdev->priv)
+#define vmudev_to_vmfdev(_vmudev)	container_of(_vmudev, struct virtio_msg_ffa_device, vmudev)
 
 static void vmsg_ffa_prepare(struct virtio_msg_ffa *msg, u8 msg_id)
 {
@@ -118,7 +121,9 @@ static int vmsg_ffa_send_indirect(struct virtio_msg_ffa_device *vmfdev,
 	 * Always wait for the operation to finish, otherwise we may start
 	 * another operation while a previous one is still on the fly.
 	 */
-	ret = virtio_msg_async_wait(async, &ffa_dev->dev, 1000);
+	if (async)
+		ret = virtio_msg_async_wait(async, &ffa_dev->dev, 1000);
+
 	vmfdev->response = NULL;
 
 	return ret;
@@ -227,7 +232,24 @@ static void vmsg_ffa_notifier_cb(int notify_id, void *cb_data, void *buf)
 {
 	struct virtio_msg_ffa_device *vmfdev = cb_data;
 
-	handle_async_event(vmfdev, buf);
+	if (vmfdev->passive) {
+		/*
+		 * Set "msg" to buf and finish the completion to wake up the
+		 * read() thread.
+		 */
+		vmfdev->vmudev.msg = buf;
+		virtio_msg_async_complete(&vmfdev->vmudev.async);
+
+		/*
+		 * Lets not return before the operations is finished to avoid
+		 * any potential races.
+		 *
+		 * Can't make a sleep-able call here.
+		 */
+		virtio_msg_async_wait_nosleep(&vmfdev->async);
+	} else {
+		handle_async_event(vmfdev, buf);
+	}
 }
 
 static int vmsg_ffa_indirect_notify_setup(struct virtio_msg_ffa_device *vmfdev)
@@ -509,6 +531,22 @@ static struct virtio_msg_ops vmf_ops = {
 	.bus_name = virtio_msg_ffa_bus_name,
 };
 
+static int virtio_msg_ffa_user_send(struct virtio_msg_user_device *vmudev,
+				    struct virtio_msg *msg)
+{
+	struct virtio_msg_ffa_device *vmfdev = vmudev_to_vmfdev(vmudev);
+
+	vmsg_ffa_send_indirect(vmfdev, NULL, (void *)msg, NULL);
+
+	/* Wake up the handler */
+	virtio_msg_async_complete(&vmfdev->async);
+	return 0;
+}
+
+static struct virtio_msg_user_ops vmf_user_ops = {
+	.send = virtio_msg_ffa_user_send,
+};
+
 static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 {
 	struct virtio_msg_ffa_device *vmfdev;
@@ -526,6 +564,9 @@ static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 		return -ENOMEM;
 
 	ida_init(&vmfdev->area_id_map);
+
+	/* Activate passive mode on host domain */
+	vmfdev->passive = ffa_dev->vm_id != 1;
 
 	vmfdev->indirect = false;
 	vmfdev->ffa_dev = ffa_dev;
@@ -560,6 +601,19 @@ static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 
 	dev->dma_ops = &virtio_msg_ffa_dma_ops;
 #endif
+
+	if (vmfdev->passive) {
+		vmfdev->vmudev.ops = &vmf_user_ops;
+		vmfdev->vmudev.parent = &ffa_dev->dev;
+
+		ret = virtio_msg_user_register(&vmfdev->vmudev);
+		if (ret) {
+			dev_err(&ffa_dev->dev, "Could not register virtio-msg user device\n");
+			return ret;
+		}
+
+		return 0;
+	}
 
 	ret = vmsg_ffa_bus_activate(vmfdev, &features, &count);
 	if (ret)
@@ -622,6 +676,9 @@ ida_free:
 static void virtio_msg_ffa_remove(struct ffa_device *ffa_dev)
 {
 	struct virtio_msg_ffa_device *vmfdev = ffa_dev->dev.driver_data;
+
+	if (vmfdev->passive)
+		virtio_msg_user_unregister(&vmfdev->vmudev);
 
 	vmsg_ffa_bus_deactivate(vmfdev);
 }
