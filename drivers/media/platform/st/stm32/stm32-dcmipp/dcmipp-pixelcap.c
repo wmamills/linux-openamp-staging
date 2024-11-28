@@ -566,11 +566,12 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 	if (ret)
 		goto err_media_pipeline_stop;
 
-	/* Configure the Pixel Packer */
+	/*
+	 * Configure the Pixel Packer
+	 * vpix is guaranteed to be valid since pixelformat is validated
+	 * in dcmipp_pixelcap_s_fmt_vid_cap function before
+	 */
 	vpix = dcmipp_pixelcap_pix_map_by_pixelformat(vcap->format.pixelformat);
-	if (!vpix)
-		goto err_media_pipeline_stop;
-
 	ppcr = vpix->ppcr_fmt;
 	if (vpix->swap_uv)
 		ppcr |= DCMIPP_PxPPCR_SWAPRB;
