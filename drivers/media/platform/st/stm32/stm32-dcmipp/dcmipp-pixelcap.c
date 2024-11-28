@@ -588,24 +588,17 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 	reg_set(vcap, DCMIPP_PxFSCR(vcap->pipe_id), DCMIPP_PxFSCR_PIPEN);
 
 	/*
-	 * Start capture if at least one buffer has been queued,
-	 * otherwise start is deferred at next buffer queueing
+	 * vb2 framework guarantee that we have at least 'min_buffers_needed'
+	 * buffers in the list at this moment
 	 */
-	buf = list_first_entry_or_null(&vcap->buffers, typeof(*buf), list);
-	if (!buf) {
-		dev_dbg(vcap->dev, "Start streaming is deferred to next buffer queueing\n");
-		vcap->next = NULL;
-		vcap->state = DCMIPP_WAIT_FOR_BUFFER;
-		return 0;
-	}
-	vcap->next = buf;
+	vcap->next = list_first_entry(&vcap->buffers, typeof(*buf), list);
 	dev_dbg(vcap->dev, "Start with next [%d] %p phy=%pad\n",
-		buf->vb.vb2_buf.index, buf, &buf->paddr);
+		vcap->next->vb.vb2_buf.index, vcap->next, &vcap->next->paddr);
 
 	vcap->state = DCMIPP_RUNNING;
 
 	/* Start capture */
-	dcmipp_start_capture(vcap, buf);
+	dcmipp_start_capture(vcap, vcap->next);
 
 	return 0;
 
