@@ -505,8 +505,8 @@ static int dcmipp_pipeline_s_stream(struct dcmipp_pixelcap_device *vcap,
 	return 0;
 }
 
-static int dcmipp_start_capture(struct dcmipp_pixelcap_device *vcap,
-				struct dcmipp_buf *buf)
+static void dcmipp_start_capture(struct dcmipp_pixelcap_device *vcap,
+				 struct dcmipp_buf *buf)
 {
 	/*
 	 * Set frame addresses
@@ -532,8 +532,6 @@ static int dcmipp_start_capture(struct dcmipp_pixelcap_device *vcap,
 
 	/* Capture request */
 	reg_set(vcap, DCMIPP_PxFCTCR(vcap->pipe_id), DCMIPP_PxFCTCR_CPTREQ);
-
-	return 0;
 }
 
 static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
@@ -606,9 +604,7 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 	vcap->state = DCMIPP_RUNNING;
 
 	/* Start capture */
-	ret = dcmipp_start_capture(vcap, buf);
-	if (ret)
-		goto err_media_pipeline_stop;
+	dcmipp_start_capture(vcap, buf);
 
 	return 0;
 
