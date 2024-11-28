@@ -566,6 +566,8 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 	if (ret)
 		goto err_media_pipeline_stop;
 
+	spin_lock_irq(&vcap->irqlock);
+
 	/*
 	 * Configure the Pixel Packer
 	 * vpix is guaranteed to be valid since pixelformat is validated
@@ -578,12 +580,6 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 
 	reg_write(vcap, DCMIPP_PxPPCR(vcap->pipe_id), ppcr);
 
-	/* Enable interruptions */
-	vcap->cmier |= DCMIPP_CMIER_PxALL(vcap->pipe_id);
-	spin_lock(&vcap->vdev.v4l2_dev->lock);
-	reg_set(vcap, DCMIPP_CMIER, vcap->cmier);
-	spin_unlock(&vcap->vdev.v4l2_dev->lock);
-
 	/* Enable pipe at the end of programming */
 	reg_set(vcap, DCMIPP_PxFSCR(vcap->pipe_id), DCMIPP_PxFSCR_PIPEN);
 
@@ -595,10 +591,18 @@ static int dcmipp_pixelcap_start_streaming(struct vb2_queue *vq,
 	dev_dbg(vcap->dev, "Start with next [%d] %p phy=%pad\n",
 		vcap->next->vb.vb2_buf.index, vcap->next, &vcap->next->paddr);
 
-	vcap->state = DCMIPP_RUNNING;
-
 	/* Start capture */
 	dcmipp_start_capture(vcap, vcap->next);
+
+	/* Enable interruptions */
+	vcap->cmier |= DCMIPP_CMIER_PxALL(vcap->pipe_id);
+	spin_lock(&vcap->vdev.v4l2_dev->lock);
+	reg_set(vcap, DCMIPP_CMIER, vcap->cmier);
+	spin_unlock(&vcap->vdev.v4l2_dev->lock);
+
+	vcap->state = DCMIPP_RUNNING;
+
+	spin_unlock_irq(&vcap->irqlock);
 
 	return 0;
 
