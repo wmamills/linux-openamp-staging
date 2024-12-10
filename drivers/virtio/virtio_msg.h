@@ -23,6 +23,7 @@
 #include <linux/virtio.h>
 #include <uapi/linux/virtio_msg.h>
 
+struct device;
 struct virtio_msg_device;
 
 /**
@@ -123,4 +124,8 @@ static inline void virtio_msg_async_complete(struct virtio_msg_async *async)
 	complete(&async->completion);
 }
 
+int vmsg_ffa_bus_area_share(struct device *dev, void *vaddr, size_t n_pages,
+			    dma_addr_t *dma_handle);
+int vmsg_ffa_bus_area_unshare(struct device *dev, dma_addr_t *dma_handle,
+			      size_t num_pages);
 #endif /* _DRIVERS_VIRTIO_VIRTIO_MSG_H */
