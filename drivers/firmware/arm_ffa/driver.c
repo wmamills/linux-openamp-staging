@@ -1477,6 +1477,9 @@ static int ffa_setup_partitions(void)
 
 	xa_init(&drv_info->partition_info);
 	for (idx = 0, tpbuf = pbuf; idx < count; idx++, tpbuf++) {
+		if (drv_info->vm_id == tpbuf->id)
+			continue;
+
 		import_uuid(&uuid, (u8 *)tpbuf->uuid);
 
 		/* Note that if the UUID will be uuid_null, that will require
