@@ -7,6 +7,8 @@
 
 #include <linux/arm_ffa.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -108,12 +110,26 @@ static struct attribute *ffa_device_attributes_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ffa_device_attributes);
 
+static int ffa_Device_dma_configure(struct device *dev)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "virtio,msg-ffa");
+	if (!np)
+		return 0;
+
+	dev->of_node = np;
+
+	return of_dma_configure(dev, np, true);
+}
+
 const struct bus_type ffa_bus_type = {
 	.name		= "arm_ffa",
 	.match		= ffa_device_match,
 	.probe		= ffa_device_probe,
 	.remove		= ffa_device_remove,
 	.uevent		= ffa_device_uevent,
+	.dma_configure	= ffa_Device_dma_configure,
 	.dev_groups	= ffa_device_attributes_groups,
 };
 EXPORT_SYMBOL_GPL(ffa_bus_type);
