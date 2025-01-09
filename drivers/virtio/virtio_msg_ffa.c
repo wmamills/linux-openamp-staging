@@ -19,7 +19,6 @@
 #include <linux/idr.h>
 #include <linux/list.h>
 #include <linux/module.h>
-#include <linux/of_reserved_mem.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/types.h>
@@ -65,7 +64,6 @@ struct virtio_msg_ffa_device {
 	void *response;
 
 	bool indirect;
-	bool reserved_mem;
 	bool passive;
 };
 
@@ -389,8 +387,7 @@ static int vmsg_ffa_bus_area_share_single(struct ffa_device *ffa_dev, void *vadd
 	if (ret < 0)
 		goto mem_reclaim;
 
-	if (dma_handle)
-		*dma_handle = ffa_to_dma(area->id, 0);
+	*dma_handle = ffa_to_dma(area->id, 0);
 
 	mutex_lock(&vmfdev->lock);
 	list_add(&area->list, &vmfdev->area_list);
@@ -418,34 +415,8 @@ int vmsg_ffa_bus_area_share(struct device *dev, void *vaddr, size_t n_pages,
 	struct ffa_device *ffa_dev = to_ffa_dev(dev);
 	struct virtio_msg_ffa_device *vmfdev = ffa_dev->dev.driver_data;
 	struct shared_area *area;
-	int ret = 0;
 
 	mutex_lock(&vmfdev->lock);
-	/*
-	 * If "restricted-dma-pool" is supported, we should have already mapped
-	 * a big enough area at initialization time. Make sure that "dma_handle"
-	 * lies within that and update dma_handle properly.
-	 */
-	if (vmfdev->reserved_mem) {
-		BUG_ON(!list_is_singular(&vmfdev->area_list));
-
-		area = list_first_entry(&vmfdev->area_list, struct shared_area,
-					list);
-
-		if ((*dma_handle < area->dma_handle) ||
-		    ((*dma_handle + n_pages * PAGE_SIZE) >
-		     (area->dma_handle + area->n_pages * PAGE_SIZE))) {
-			dev_err(dev, "Vaddr out of range\n");
-			ret = -EINVAL;
-		} else {
-			*dma_handle = ffa_to_dma(area->id, *dma_handle - area->dma_handle);
-			area->count++;
-		}
-
-		mutex_unlock(&vmfdev->lock);
-		return ret;
-	}
-
 	/* Check if area is already mapped */
 	list_for_each_entry(area, &vmfdev->area_list, list) {
 		/* TODO: Only support exact page match for now */
@@ -552,10 +523,6 @@ static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 	struct virtio_msg_ffa_device *vmfdev;
 	struct device *dev = &ffa_dev->dev;
 	struct virtio_msg_device *vmdev;
-#ifdef CONFIG_VIRTIO_MSG_FFA_DMA_OPS
-	struct reserved_mem *rmem;
-	struct device_node *np;
-#endif
 	u64 features, count;
 	int ret, i;
 
@@ -586,19 +553,6 @@ static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 
 	/* Set DMA OPs for the channel bus device */
 #ifdef CONFIG_VIRTIO_MSG_FFA_DMA_OPS
-	np = of_parse_phandle(dev->of_node, "memory-region", 0);
-	if (!np)
-		goto ida_free;
-
-	rmem = of_reserved_mem_lookup(np);
-	if (rmem) {
-		ret = vmsg_ffa_bus_area_share(dev, phys_to_virt(rmem->base),
-					      PFN_UP(rmem->size), NULL);
-		if (ret)
-			goto ida_free;
-		vmfdev->reserved_mem = true;
-	}
-
 	dev->dma_ops = &virtio_msg_ffa_dma_ops;
 #endif
 

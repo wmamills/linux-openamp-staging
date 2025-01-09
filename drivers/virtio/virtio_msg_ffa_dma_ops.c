@@ -13,7 +13,6 @@
 
 #define pr_fmt(fmt) "virtio-msg-dma-ops: " fmt
 
-#include <linux/dma-direct.h>
 #include <linux/dma-map-ops.h>
 #include <linux/virtio.h>
 #include <linux/virtio_anchor.h>
@@ -30,13 +29,13 @@ static void *virtio_msg_dma_alloc(struct device *dev, size_t size,
 	void *vaddr;
 	int ret;
 
-	vaddr = dma_direct_alloc(dev, size, dma_handle, gfp, attrs);
+	vaddr = alloc_pages_exact(n_pages * PAGE_SIZE, gfp);
 	if (!vaddr)
 		return NULL;
 
 	ret = vmsg_ffa_bus_area_share(dev, vaddr, n_pages, dma_handle);
 	if (ret) {
-		dma_direct_free(dev, size, vaddr, *dma_handle, attrs);
+		free_pages_exact(vaddr, n_pages * PAGE_SIZE);
 		return NULL;
 	}
 
@@ -53,7 +52,7 @@ static void virtio_msg_dma_free(struct device *dev, size_t size, void *vaddr,
 	if (ret)
 		dev_err(dev, "%s: Failed to unshare area: %d", __func__, ret);
 
-	dma_direct_free(dev, n_pages * PAGE_SIZE, vaddr, dma_handle, attrs);
+	free_pages_exact(vaddr, n_pages * PAGE_SIZE);
 }
 
 static struct page *virtio_msg_dma_alloc_pages(struct device *dev, size_t size,
@@ -88,14 +87,7 @@ static dma_addr_t virtio_msg_dma_map_page(struct device *dev, struct page *page,
 	if (WARN_ON(dir == DMA_NONE))
 		return DMA_MAPPING_ERROR;
 
-	if (!is_swiotlb_force_bounce(dev))
-		return DMA_MAPPING_ERROR;
-
-	dma_handle = swiotlb_map(dev, page_to_phys(page) + offset, size, dir, attrs);
-	if (dma_handle == DMA_MAPPING_ERROR)
-		return DMA_MAPPING_ERROR;
-
-	if (vmsg_ffa_bus_area_share(dev, phys_to_virt(dma_handle), n_pages,
+	if (vmsg_ffa_bus_area_share(dev, page_to_virt(page), n_pages,
 				    &dma_handle))
 		return DMA_MAPPING_ERROR;
 
@@ -118,9 +110,6 @@ static void virtio_msg_dma_unmap_page(struct device *dev, dma_addr_t dma_handle,
 	ret = vmsg_ffa_bus_area_unshare(dev, &dma_handle, n_pages);
 	if (ret)
 		dev_err(dev, "%s: Failed to unshare area: %d", __func__, ret);
-
-	swiotlb_tbl_unmap_single(dev, dma_to_phys(dev, dma_handle), size, dir,
-			attrs);
 }
 
 static void virtio_msg_dma_unmap_sg(struct device *dev, struct scatterlist *sg,
