@@ -7,6 +7,8 @@
 
 #include <linux/arm_ffa.h>
 #include <linux/device.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -187,6 +189,32 @@ bool ffa_device_is_valid(struct ffa_device *ffa_dev)
 	return valid;
 }
 
+static void ffa_device_of_setup(struct ffa_device *ffa_dev)
+{
+	struct device_node *np;
+	uuid_t uuid;
+	u32 val;
+
+	/* vm-id and UUID must match */
+	for_each_compatible_node(np, NULL, "arm,ffa") {
+		if (of_property_read_u32(np, "vm-id", &val))
+			continue;
+
+		if (ffa_dev->vm_id != val)
+			continue;
+
+		if (of_property_read_u32_array(np, "uuid", (u32 *)&uuid,
+					       sizeof(uuid) / sizeof(u32)))
+			continue;
+
+		if (!uuid_equal(&ffa_dev->uuid, &uuid))
+			continue;
+
+		device_set_node(&ffa_dev->dev, of_fwnode_handle(np));
+		break;
+	}
+}
+
 struct ffa_device *
 ffa_device_register(const struct ffa_partition_info *part_info,
 		    const struct ffa_ops *ops)
@@ -221,6 +249,8 @@ ffa_device_register(const struct ffa_partition_info *part_info,
 	ffa_dev->ops = ops;
 	import_uuid(&uuid, (u8 *)part_info->uuid);
 	uuid_copy(&ffa_dev->uuid, &uuid);
+
+	ffa_device_of_setup(ffa_dev);
 
 	ret = device_register(&ffa_dev->dev);
 	if (ret) {
