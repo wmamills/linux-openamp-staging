@@ -110,12 +110,21 @@ static struct attribute *ffa_device_attributes_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ffa_device_attributes);
 
+static int ffa_Device_dma_configure(struct device *dev)
+{
+	if (dev->of_node)
+		return of_dma_configure(dev, dev->of_node, true);
+
+	return 0;
+}
+
 const struct bus_type ffa_bus_type = {
 	.name		= "arm_ffa",
 	.match		= ffa_device_match,
 	.probe		= ffa_device_probe,
 	.remove		= ffa_device_remove,
 	.uevent		= ffa_device_uevent,
+	.dma_configure	= ffa_Device_dma_configure,
 	.dev_groups	= ffa_device_attributes_groups,
 };
 EXPORT_SYMBOL_GPL(ffa_bus_type);
