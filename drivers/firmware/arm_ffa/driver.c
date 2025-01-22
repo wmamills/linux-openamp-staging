@@ -1389,6 +1389,10 @@ static int ffa_add_partition_info(int vm_id)
 	struct ffa_dev_part_info *info;
 	int ret;
 
+	/* Already added ? */
+	if (xa_load(&drv_info->partition_info, vm_id))
+		return 0;
+
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
