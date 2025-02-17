@@ -58,27 +58,14 @@ static irqreturn_t sapphire_irq_handler(int irq, void *dev_id)
 static int sapphire_tx_notify(struct virtio_msg_amp *_amp_dev, u32 notify_idx) {
 	struct sapphire_dev *sapphire_dev =
 		container_of(_amp_dev, struct sapphire_dev, amp_dev);
-    uint32_t r;
 
 	if (notify_idx != 0) {
 		dev_warn(&sapphire_dev->pdev->dev, "ivshmem tx_notify_idx not 0");
 		notify_idx = 0;
 	}
 
-    do {
-        writel(1, &sapphire_dev->regs->int_status);
-        r = readl(&sapphire_dev->regs->int_status);
-    } while (r != 1);
-
-    udelay(10);
-
-    do {
-        writel(0, &sapphire_dev->regs->int_status);
-        r = readl(&sapphire_dev->regs->int_status);
-    } while (r != 0);
-
-    udelay(10);
-
+	smp_wmb();
+	writel(1, &sapphire_dev->regs->int_status);
 	return 0;
 }
 
@@ -110,22 +97,21 @@ static struct virtio_msg_amp_ops sapphire_amp_ops = {
 
 static enum hrtimer_restart sapphire_poll_timer_expired(struct hrtimer *hrtimer)
 {
-    	struct sapphire_dev *sapphire_dev =
+	struct sapphire_dev *sapphire_dev =
 		        container_of(hrtimer, struct sapphire_dev, poll_timer);
-        int err;
+	int err;
 
-        if (sapphire_dev->probed_ok && 0) {
-            printk("STOP polled notifications\n");
-            return HRTIMER_NORESTART;
-        }
+	if (sapphire_dev->probed_ok) {
+		printk("STOP polled notifications\n");
+		return HRTIMER_NORESTART;
+	}
 
-        /* we always use notify index 0 */
-        sapphire_tx_notify(&sapphire_dev->amp_dev, 0);
-        err = virtio_msg_amp_notify_rx(&sapphire_dev->amp_dev, 0);
-        if (err)
-            dev_err(&sapphire_dev->pdev->dev, "sapphire NOTIFY error %d", err);
+	/* we always use notify index 0 */
+	err = virtio_msg_amp_notify_rx(&sapphire_dev->amp_dev, 0);
+	if (err)
+		dev_err(&sapphire_dev->pdev->dev, "sapphire NOTIFY error %d", err);
 
-        hrtimer_forward_now(hrtimer, ms_to_ktime(50));
+	hrtimer_forward_now(hrtimer, ms_to_ktime(50));
         return HRTIMER_RESTART;
 }
 
@@ -232,15 +218,17 @@ static int sapphire_probe(struct pci_dev *pdev, const struct pci_device_id *id)
     hrtimer_init(&sapphire_dev->poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
     sapphire_dev->poll_timer.function = sapphire_poll_timer_expired;
 
-    hrtimer_start(&sapphire_dev->poll_timer, ms_to_ktime(50),
-                  HRTIMER_MODE_REL);
+	if (0) {
+		hrtimer_start(&sapphire_dev->poll_timer, ms_to_ktime(50),
+			      HRTIMER_MODE_REL);
+	}
 
 	sapphire_dev->amp_dev.ops = &sapphire_amp_ops;
 	err = virtio_msg_amp_register(&sapphire_dev->amp_dev);
 	if (err)
 		goto error_reg;
 
-    sapphire_dev->probed_ok = true;
+	sapphire_dev->probed_ok = true;
 
 	dev_info(&pdev->dev, "probe successful\n");
 
