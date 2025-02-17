@@ -17,7 +17,7 @@
 #define DRV_NAME "virtio_msg_sapphire"
 
 struct sapphire_regs {
-        u32 int_status;
+	u32 int_status;
 };
 
 struct sapphire_dev {
@@ -25,13 +25,13 @@ struct sapphire_dev {
 	struct pci_dev *pdev;
 	uint32_t __iomem *cfg_bram;
 	struct sapphire_regs __iomem *regs;
-    struct hrtimer poll_timer; /* Broken MSI.  */
+	struct hrtimer poll_timer; /* Broken MSI.  */
 
 	int vectors;
 
-    dma_addr_t shmem_dma;
+	dma_addr_t shmem_dma;
 
-    bool probed_ok;
+	bool probed_ok;
 };
 
 /**
@@ -124,7 +124,7 @@ static int sapphire_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	phys_addr_t addr;
 	resource_size_t	size;
 
-    printk("%s\n", __func__);
+	printk("%s\n", __func__);
 	sapphire_dev = devm_kzalloc(&pdev->dev, sizeof(struct sapphire_dev),
 				 GFP_KERNEL);
 	if (!sapphire_dev) {
@@ -174,7 +174,7 @@ static int sapphire_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	 * notifier. This avoids missing any event.
 	 */
 	sapphire_dev->vectors = pci_msix_vec_count(pdev);
-    printk("vectors %d\n", sapphire_dev->vectors);
+	printk("vectors %d\n", sapphire_dev->vectors);
 	if (sapphire_dev->vectors < 0)
 		sapphire_dev->vectors = 1;
 
@@ -194,29 +194,29 @@ static int sapphire_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	pci_set_drvdata(pdev, sapphire_dev);
 	sapphire_dev->pdev = pdev;
 
-    printk("%s: enable bus mastering queue dma 0x%llx\n", __func__,
+	printk("%s: enable bus mastering queue dma 0x%llx\n", __func__,
             sapphire_dev->shmem_dma);
 	pci_set_master(pdev);
 
-    /* dma map shmem.  */
-    sapphire_dev->amp_dev.shmem = dma_alloc_coherent(&pdev->dev, 8 * 1024,
-                                                     &sapphire_dev->shmem_dma,
-                                                     GFP_KERNEL);
+	/* dma map shmem.  */
+	sapphire_dev->amp_dev.shmem = dma_alloc_coherent(&pdev->dev, 8 * 1024,
+			                                 &sapphire_dev->shmem_dma,
+                                                         GFP_KERNEL);
 	sapphire_dev->amp_dev.shmem_size = 8 * 1024;
-    printk("%s: shmem=%p %llx\n", __func__,
+	printk("%s: shmem=%p %llx\n", __func__,
             sapphire_dev->amp_dev.shmem,
             sapphire_dev->shmem_dma);
 
 	dev_info(&pdev->dev, "SHMEM @ 0: %32ph \n", sapphire_dev->amp_dev.shmem);
 
-    addr = sapphire_dev->shmem_dma;
-    sapphire_dev->cfg_bram[0x4000/4 + 1] = addr;
-    sapphire_dev->cfg_bram[0x4000/4 + 2] = addr >> 32;
-    smp_wmb();
-    sapphire_dev->cfg_bram[0x4000/4 + 0] = 1;
+	addr = sapphire_dev->shmem_dma;
+	sapphire_dev->cfg_bram[0x4000/4 + 1] = addr;
+	sapphire_dev->cfg_bram[0x4000/4 + 2] = addr >> 32;
+	smp_wmb();
+	sapphire_dev->cfg_bram[0x4000/4 + 0] = 1;
 
-    hrtimer_init(&sapphire_dev->poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-    sapphire_dev->poll_timer.function = sapphire_poll_timer_expired;
+	hrtimer_init(&sapphire_dev->poll_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	sapphire_dev->poll_timer.function = sapphire_poll_timer_expired;
 
 	if (0) {
 		hrtimer_start(&sapphire_dev->poll_timer, ms_to_ktime(50),
@@ -235,11 +235,11 @@ static int sapphire_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	return 0;
 
 error_reg:
-    printk("free coherent\n");
-    dma_free_coherent(&pdev->dev, 8 * 1024,
-                      sapphire_dev->amp_dev.shmem, sapphire_dev->shmem_dma);
+	printk("free coherent\n");
+	dma_free_coherent(&pdev->dev, 8 * 1024,
+			 sapphire_dev->amp_dev.shmem, sapphire_dev->shmem_dma);
 
-    printk("free coherent done\n");
+	printk("free coherent done\n");
 	pci_clear_master(pdev);
 
 error_irq:
