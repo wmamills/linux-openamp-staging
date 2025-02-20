@@ -207,8 +207,11 @@ static int used_event_task(void *data)
 static void handle_async_event(struct virtio_msg_ffa_device *vmfdev,
 			       struct virtio_msg *vmsg)
 {
+	struct event_used *payload = virtio_msg_payload(vmsg);
 	struct ffa_device *ffa_dev = vmfdev->ffa_dev;
 	struct virtio_msg_device *vmdev;
+	struct virtqueue *vq;
+	u32 index = 0;
 
 	/*
 	 * We can either receive a response message (to a previously sent
@@ -241,11 +244,20 @@ static void handle_async_event(struct virtio_msg_ffa_device *vmfdev,
 	if (!vmdev)
 		return;
 
-	if (virtio_msg_event(vmdev, vmsg)) {
-		/* Interrupt should belong to one of the virtqueues at least */
-		dev_err(&ffa_dev->dev,
-				"Failed to find virtqueue for EVENT_USED message\n");
+	/*
+	 * Received EVENT_USED request, but the index field can't be really used
+	 * as the backend doesn't fill it. Receive the message for each
+	 * virtqueue until one accepts it.
+	 */
+	virtio_device_for_each_vq(&vmdev->vdev, vq) {
+		payload->index = cpu_to_le32(index++);
+		if (!virtio_msg_event(vmdev, vmsg))
+			return;
 	}
+
+	/* Interrupt should belong to one of the virtqueues at least */
+	dev_err(&ffa_dev->dev,
+		"Failed to find virtqueue for EVENT_USED message\n");
 }
 
 static void vmsg_ffa_notifier_cb(int notify_id, void *cb_data, void *buf)
