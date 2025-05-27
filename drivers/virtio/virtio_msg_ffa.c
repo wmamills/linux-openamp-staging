@@ -24,6 +24,17 @@
 
 #include "virtio_msg.h"
 
+/* Represents area shared with a partition */
+struct shared_area {
+	u64 handle;
+	u32 id;
+	void *vaddr;
+	dma_addr_t dma_handle;
+	size_t n_pages;
+	u32 count;
+	struct list_head list;
+};
+
 /* Represents channel bus corresponding to a partition */
 struct virtio_msg_ffa_device {
 	struct ffa_device *ffa_dev;
@@ -33,9 +44,26 @@ struct virtio_msg_ffa_device {
 	bool indirect;
 	struct virtio_msg_async async;
 	void *response;
+
+	struct ida area_id_map;
+	struct list_head area_list;
+	struct mutex lock; /* protects area_list */
 };
 
 #define to_vmfdev(_vmdev) ((struct virtio_msg_ffa_device *) vmdev->priv)
+
+static inline dma_addr_t ffa_to_dma(u32 area_id, dma_addr_t offset)
+{
+	return ((u64) area_id << VIRTIO_MSG_FFA_AREA_ID_OFFSET) |
+		(offset & VIRTIO_MSG_FFA_OFFSET_MASK);
+}
+
+static inline u32 dma_to_ffa(dma_addr_t dma_handle, dma_addr_t *offset)
+{
+	*offset = dma_handle & VIRTIO_MSG_FFA_OFFSET_MASK;
+
+	return dma_handle >> VIRTIO_MSG_FFA_AREA_ID_OFFSET;
+}
 
 static struct virtio_msg *ffa_msg_alloc(struct virtio_msg_ffa_device *vmfdev)
 {
@@ -260,6 +288,180 @@ static const char *virtio_msg_ffa_bus_info(struct virtio_msg_device *vmdev,
 	return dev_name(&vmfdev->ffa_dev->dev);
 }
 
+static int vmsg_ffa_bus_area_share_single(struct ffa_device *ffa_dev, void *vaddr,
+		size_t n_pages, dma_addr_t *dma_handle)
+{
+	struct virtio_msg_ffa_device *vmfdev = ffa_dev->dev.driver_data;
+	struct ffa_mem_region_attributes mem_attr = {
+		.receiver = ffa_dev->vm_id,
+		.attrs = FFA_MEM_RW,
+	};
+	struct ffa_mem_ops_args args = {
+		.use_txbuf = true,
+		.attrs = &mem_attr,
+		.nattrs = 1,
+	};
+	struct page **pages __free(kfree) = NULL;
+	struct virtio_msg *vmsg __free(kfree);
+	struct bus_area_share *payload;
+	struct shared_area *area;
+	struct sg_table sgt;
+	int ret, i;
+
+	vmsg = ffa_msg_alloc(vmfdev);
+	if (!vmsg)
+		return -ENOMEM;
+	payload = virtio_msg_payload(vmsg);
+
+	pages = kmalloc(sizeof(*pages) * n_pages, GFP_KERNEL);
+	if (!pages)
+		return -ENOMEM;
+
+	for (i = 0; i < n_pages; i++)
+		pages[i] = virt_to_page((void *)((u64)vaddr + PAGE_SIZE * i));
+
+	area = kzalloc(sizeof(*area), GFP_KERNEL);
+	if (!area)
+		return -ENOMEM;
+
+	ret = ida_alloc_range(&vmfdev->area_id_map, 1, U32_MAX - 1, GFP_KERNEL);
+	if (ret < 0)
+		goto free_area;
+	area->id = ret;
+
+	/* Share the pages */
+	ret = sg_alloc_table_from_pages(&sgt, pages, n_pages, 0,
+					n_pages * PAGE_SIZE, GFP_KERNEL);
+	if (ret)
+		goto free_ida;
+
+	args.sg = sgt.sgl;
+	ret = ffa_dev->ops->mem_ops->memory_share(&args);
+	sg_free_table(&sgt);
+
+	if (ret)
+		goto free_ida;
+
+	area->handle = args.g_handle;
+	area->vaddr = vaddr;
+	area->dma_handle = virt_to_phys(vaddr);
+	area->n_pages = n_pages;
+	area->count = 1;
+
+	ffa_msg_prepare(vmfdev, vmsg, VIRTIO_MSG_FFA_BUS_AREA_SHARE, sizeof(*payload));
+	payload->area_id = cpu_to_le16(area->id);
+	payload->mem_handle = cpu_to_le64(area->handle);
+	payload->count = cpu_to_le32(n_pages);
+
+	ret = vmsg_ffa_send(vmfdev, &vmfdev->async, vmsg, NULL);
+	if (ret < 0)
+		goto mem_reclaim;
+
+	*dma_handle = ffa_to_dma(area->id, 0);
+
+	mutex_lock(&vmfdev->lock);
+	list_add(&area->list, &vmfdev->area_list);
+	mutex_unlock(&vmfdev->lock);
+
+	return 0;
+
+mem_reclaim:
+	ffa_dev->ops->mem_ops->memory_reclaim(area->handle, 0);
+free_ida:
+	ida_free(&vmfdev->area_id_map, area->id);
+free_area:
+	kfree(area);
+
+	return ret;
+}
+
+/* vaddr is always page aligned */
+int vmsg_ffa_bus_area_share(struct device *dev, void *vaddr, size_t n_pages,
+			    dma_addr_t *dma_handle)
+{
+	struct ffa_device *ffa_dev = to_ffa_dev(dev);
+	struct virtio_msg_ffa_device *vmfdev = ffa_dev->dev.driver_data;
+	struct shared_area *area;
+
+	mutex_lock(&vmfdev->lock);
+	/* Check if area is already mapped */
+	list_for_each_entry(area, &vmfdev->area_list, list) {
+		/* TODO: Only support exact page match for now */
+		if (area->vaddr == vaddr && area->n_pages == n_pages) {
+			*dma_handle = ffa_to_dma(area->id, 0);
+			area->count++;
+			mutex_unlock(&vmfdev->lock);
+			return 0;
+		}
+	}
+	mutex_unlock(&vmfdev->lock);
+
+	return vmsg_ffa_bus_area_share_single(ffa_dev, vaddr, n_pages, dma_handle);
+}
+EXPORT_SYMBOL_GPL(vmsg_ffa_bus_area_share);
+
+static int vmsg_ffa_bus_area_unshare_single(struct ffa_device *ffa_dev,
+		struct shared_area *area)
+{
+	struct virtio_msg_ffa_device *vmfdev = ffa_dev->dev.driver_data;
+	struct virtio_msg *vmsg __free(kfree);
+	struct bus_area_unshare *payload;
+	int ret;
+
+	vmsg = ffa_msg_alloc(vmfdev);
+	if (!vmsg)
+		return -ENOMEM;
+	payload = virtio_msg_payload(vmsg);
+
+	ffa_msg_prepare(vmfdev, vmsg, VIRTIO_MSG_FFA_BUS_AREA_UNSHARE, sizeof(*payload));
+	payload->area_id = cpu_to_le16(area->id);
+
+	ret = vmsg_ffa_send(vmfdev, &vmfdev->async, vmsg, NULL);
+	if (!ret) {
+		/* reclaim shared memory */
+		ret = ffa_dev->ops->mem_ops->memory_reclaim(area->handle, 0);
+	}
+
+	ida_free(&vmfdev->area_id_map, area->id);
+	kfree(area);
+
+	return ret;
+}
+
+int vmsg_ffa_bus_area_unshare(struct device *dev, dma_addr_t *dma_handle,
+			      size_t n_pages)
+{
+	struct ffa_device *ffa_dev = to_ffa_dev(dev);
+	struct virtio_msg_ffa_device *vmfdev = ffa_dev->dev.driver_data;
+	struct shared_area *area;
+	dma_addr_t offset;
+	u32 area_id;
+
+	area_id = dma_to_ffa(*dma_handle, &offset);
+
+	mutex_lock(&vmfdev->lock);
+	list_for_each_entry(area, &vmfdev->area_list, list) {
+		if (area->id == area_id) {
+			*dma_handle = area->dma_handle + offset;
+
+			if (--area->count) {
+				mutex_unlock(&vmfdev->lock);
+				return 0;
+			}
+
+			WARN_ON(area->n_pages != n_pages);
+			list_del(&area->list);
+			mutex_unlock(&vmfdev->lock);
+
+			return vmsg_ffa_bus_area_unshare_single(ffa_dev, area);
+		}
+	}
+	mutex_unlock(&vmfdev->lock);
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(vmsg_ffa_bus_area_unshare);
+
 static struct virtio_msg_ops vmf_ops = {
 	.transfer = virtio_msg_ffa_transfer,
 	.bus_info = virtio_msg_ffa_bus_info,
@@ -284,13 +486,17 @@ static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 	if (!vmfdev)
 		return -ENOMEM;
 
+	ida_init(&vmfdev->area_id_map);
+
 	/* Try direct message first */
 	vmfdev->indirect = false;
 
 	vmfdev->ffa_dev = ffa_dev;
 	vmfdev->msg_size = VIRTIO_MSG_FFA_BUS_MSG_SIZE;
 	ffa_dev_set_drvdata(ffa_dev, vmfdev);
+	INIT_LIST_HEAD(&vmfdev->area_list);
 	virtio_msg_async_init(&vmfdev->async);
+	mutex_init(&vmfdev->lock);
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64));
 	if (ret)
@@ -300,7 +506,7 @@ static int virtio_msg_ffa_probe(struct ffa_device *ffa_dev)
 
 	ret = vmsg_ffa_indirect_notify_setup(vmfdev);
 	if (ret)
-		return ret;
+		goto ida_destroy;
 
 	ret = vmsg_ffa_bus_version(vmfdev, &features, &count);
 	if (ret)
@@ -354,6 +560,8 @@ unregister:
 	remove_vmdevs(vmfdev, i);
 notify_cleanup:
 	vmsg_ffa_indirect_notify_cleanup(vmfdev);
+ida_destroy:
+	ida_destroy(&vmfdev->area_id_map);
 	return ret;
 }
 
@@ -363,6 +571,7 @@ static void virtio_msg_ffa_remove(struct ffa_device *ffa_dev)
 
 	remove_vmdevs(vmfdev, vmfdev->vmdev_count);
 	vmsg_ffa_indirect_notify_cleanup(vmfdev);
+	ida_destroy(&vmfdev->area_id_map);
 }
 
 static const struct ffa_device_id virtio_msg_ffa_device_ids[] = {

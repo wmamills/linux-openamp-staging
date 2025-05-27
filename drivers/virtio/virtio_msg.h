@@ -15,6 +15,7 @@
 #include <linux/virtio.h>
 #include <uapi/linux/virtio_msg.h>
 
+struct device;
 struct virtio_msg_device;
 
 /**
@@ -146,5 +147,12 @@ static inline int virtio_msg_user_register(struct virtio_msg_user_device *vmudev
 }
 static inline void virtio_msg_user_unregister(struct virtio_msg_user_device *vmudev) {}
 #endif /* CONFIG_VIRTIO_MSG_USER */
+
+#if IS_REACHABLE(CONFIG_VIRTIO_MSG_FFA)
+int vmsg_ffa_bus_area_share(struct device *dev, void *vaddr, size_t n_pages,
+			    dma_addr_t *dma_handle);
+int vmsg_ffa_bus_area_unshare(struct device *dev, dma_addr_t *dma_handle,
+			      size_t num_pages);
+#endif
 
 #endif /* _DRIVERS_VIRTIO_VIRTIO_MSG_H */
