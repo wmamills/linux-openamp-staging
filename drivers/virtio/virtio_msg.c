@@ -271,7 +271,7 @@ static bool _virtio_msg_notify(struct virtqueue *vq, u32 index, u32 offset,
 	val |= wrap & (1U << VIRTIO_MSG_EVENT_AVAIL_WRAP_SHIFT);
 	payload->next_offset_wrap = cpu_to_le32(val);
 
-	return !virtio_msg_xfer(vmdev);
+	return !virtio_msg_send(vmdev);
 }
 
 static bool virtio_msg_notify(struct virtqueue *vq)
