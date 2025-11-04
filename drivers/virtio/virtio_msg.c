@@ -57,6 +57,13 @@ static void transport_msg_prepare(struct virtio_msg_device *vmdev, u8 msg_id,
 		    payload_size);
 }
 
+static void event_msg_prepare(struct virtio_msg_device *vmdev, u8 msg_id,
+				  u16 token, u16 payload_size)
+{
+	msg_prepare(vmdev->event, false, msg_id, vmdev->dev_id, token,
+		    payload_size);
+}
+
 /**
  * virtio_msg_prepare - Initialize a virtio message for bus transfer
  * @vmsg: Pointer to the virtio message structure to initialize
@@ -85,17 +92,6 @@ static int virtio_msg_xfer(struct virtio_msg_device *vmdev)
 		dev_err(&vmdev->vdev.dev, "Transfer request failed (%d)\n", ret);
 	else
 		WARN_ON(vmdev->request->token != vmdev->response->token);
-
-	return ret;
-}
-
-static inline int virtio_msg_send(struct virtio_msg_device *vmdev)
-{
-	int ret;
-
-	ret = vmdev->ops->transfer(vmdev, vmdev->request, NULL);
-	if (ret)
-		dev_err(&vmdev->vdev.dev, "Send request failed (%d)\n", ret);
 
 	return ret;
 }
@@ -352,13 +348,13 @@ static void virtio_msg_reset(struct virtio_device *vdev)
 static bool _vmsg_notify(struct virtqueue *vq, u32 index, u32 offset, bool wrap)
 {
 	struct virtio_msg_device *vmdev = to_virtio_msg_device(vq->vdev);
-	struct event_avail *payload = virtio_msg_payload(vmdev->request);
+	struct event_avail *payload = virtio_msg_payload(vmdev->event);
 	u32 val;
 
-	static_assert(sizeof(*vmdev->request) + sizeof(*payload) <
+	static_assert(sizeof(*vmdev->event) + sizeof(*payload) <
 		      VIRTIO_MSG_MIN_SIZE);
-	transport_msg_prepare(vmdev, VIRTIO_MSG_EVENT_AVAIL, TOKEN_EVENT,
-			      sizeof(*payload));
+	event_msg_prepare(vmdev, VIRTIO_MSG_EVENT_AVAIL, TOKEN_EVENT,
+			  sizeof(*payload));
 	payload->index = cpu_to_le32(index);
 
 	val = offset & GENMASK(VIRTIO_MSG_EVENT_AVAIL_WRAP_SHIFT - 1, 0);
@@ -366,7 +362,7 @@ static bool _vmsg_notify(struct virtqueue *vq, u32 index, u32 offset, bool wrap)
 		val |= BIT(VIRTIO_MSG_EVENT_AVAIL_WRAP_SHIFT);
 	payload->next_offset_wrap = cpu_to_le32(val);
 
-	return !virtio_msg_send(vmdev);
+	return !vmdev->ops->transfer(vmdev, vmdev->event, NULL);
 }
 
 static bool virtio_msg_notify(struct virtqueue *vq)
@@ -622,11 +618,12 @@ int virtio_msg_register(struct virtio_msg_device *vmdev)
 	 * Since requests are serialized per device, one pair of buffers
 	 * suffices.
 	 */
-	vmdev->request = kzalloc(2 * vmdev->msg_size, GFP_KERNEL);
+	vmdev->request = kzalloc(3 * vmdev->msg_size, GFP_KERNEL);
 	if (!vmdev->request)
 		return -ENOMEM;
 
-	vmdev->response = (void *)vmdev->request + vmdev->msg_size;
+	vmdev->event = (void *)vmdev->request + vmdev->msg_size;
+	vmdev->response = (void *)vmdev->request + 2 * vmdev->msg_size;
 
 	vmdev->vdev.config = &virtio_msg_config_ops;
 	vmdev->vdev.dev.release = virtio_msg_release_dev;
