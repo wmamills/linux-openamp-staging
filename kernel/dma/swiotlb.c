@@ -793,6 +793,7 @@ out:
 	rcu_read_unlock();
 	return pool;
 }
+EXPORT_SYMBOL_GPL(__swiotlb_find_pool);
 
 /**
  * swiotlb_del_pool() - remove an IO TLB pool from a device
@@ -1566,6 +1567,7 @@ void __swiotlb_tbl_unmap_single(struct device *dev, phys_addr_t tlb_addr,
 		return;
 	swiotlb_release_slots(dev, tlb_addr, pool);
 }
+EXPORT_SYMBOL_GPL(__swiotlb_tbl_unmap_single);
 
 void __swiotlb_sync_single_for_device(struct device *dev, phys_addr_t tlb_addr,
 		size_t size, enum dma_data_direction dir,
@@ -1621,6 +1623,7 @@ dma_addr_t swiotlb_map(struct device *dev, phys_addr_t paddr, size_t size,
 	}
 	return dma_addr;
 }
+EXPORT_SYMBOL_GPL(swiotlb_map);
 
 size_t swiotlb_max_mapping_size(struct device *dev)
 {
